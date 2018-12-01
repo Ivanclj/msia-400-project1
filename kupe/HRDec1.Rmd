@@ -97,22 +97,17 @@ denver.driver$fill_date<-as.Date(denver.driver$fill_date,"%m/%d/%Y")
 # Month 1 = August 2017
 # Month 12 = July 2018
 library(lubridate)
-denver.driver %>%
-  mutate(month = month(post_date)) %>%
-  group_by(month) %>%
-  summarize(avg_time_to_fill = mean(time_to_fill), n=n()) %>%
-  ggplot(aes(month, avg_time_to_fill)) + 
-  geom_line()
 
 ```
 
 ```{r}
-# Driver job postings by week in Denven
+# Driver job postings by week in Denver
 
 denver.driver %>%
   count(week = floor_date(post_date, "week")) %>%
   ggplot(aes(week, n)) + 
-  geom_line()
+  geom_line() +
+  labs(title = "Denver Driving Jobs (August 2017-July 2017), Job Posts Per Week")
 
 
 ```
@@ -124,10 +119,15 @@ denver.driver$quarter3 <- ifelse(month(denver.driver$post_date) %in% c(7, 8, 9),
 denver.driver$quarter4 <- ifelse(month(denver.driver$post_date) %in% c(10, 11, 12), 1, 0)
 ```
 
+```{r}
+
+denver.driver$salary.bucket <- ifelse(denver.driver$salary < 30000, "Low", ifelse(denver.driver$salary < 50000, "Medium", "High"))
+
+```
 
 ```{r}
 library(MASS)
-full.den.driver.model <- lm(log(time_to_fill) ~ log(salary) + region + safety + diploma + transportation + cust.serv + training + commercial + warehouse + quarter1 + quarter2 + quarter3, data=denver.driver)
+full.den.driver.model <- lm(log(time_to_fill) ~ log(salary) + region + safety + diploma + transportation + cust.serv + training + commercial + warehouse + quarter1 + quarter2 + quarter3 + salary.bucket, data=denver.driver)
 summary(full.den.driver.model)
 
 ```
@@ -143,14 +143,56 @@ plot(step.denver.driver.model)
 
 ```
 
+```{r}
+
+ggplot(data = denver.driver, mapping = aes(x=log(salary), y=log(time_to_fill))) +
+  geom_point(mapping = aes(color = region)) +
+  geom_smooth(mapping = aes(x = log(salary), y=log(time_to_fill), color=region), se=FALSE) +
+  labs(title = "Denver Driving Jobs (August 2017-July 2017)")
+```
+
+```{r}
+denver.driver$quarter <- ifelse(denver.driver$quarter1 == 1, 1, ifelse(denver.driver$quarter2 == 1, 2, ifelse(denver.driver$quarter3 == 1, 3, 4)))
+denver.driver$quarter <- factor(denver.driver$quarter, levels=c(3,4,1,2))
+```
+
+```{r}
+ggplot(data = denver.driver, mapping = aes(x = as.factor(quarter), y = log(time_to_fill))) + 
+         geom_boxplot() +
+  labs(title = "Denver Driving Jobs Took Longer to Fill in 3rd, 4th Quarter 2017", x="3rd / 4th Quarter 2017                                                1st / 2nd Quarter 2018" )
+
+```
 
 
+```{r}
+g1 <- ggplot(data = denver.driver, mapping = aes(x = region, y = log(time_to_fill))) + 
+         geom_violin(trim=FALSE) +
+  labs(title = "No Significant Difference Between Denver / Aurora / Suburbs", x="Greater Denver Area Driver Jobs")
 
+g1 + geom_dotplot(binaxis="y", stackdir='center', dotsize=1)
 
+```
 
+```{r}
+ggplot(data = denver.driver, mapping = aes(x = as.factor(transportation), y = log(time_to_fill))) + 
+         geom_dotplot(binaxis='y', stackdir='center', stackratio=1.5, dotsize=0.5) +
+  labs(title = "Significant Difference Between Posts That Include Tag=(Transportation)", x="Transportation Jobs Fill Slower") + scale_x_discrete(labels=c("0" = "No Transportation", "1" = "Transportation"))
 
+```
 
+```{r}
+ggplot(data = denver.driver, mapping = aes(x = as.factor(warehouse), y = log(time_to_fill))) + 
+         geom_dotplot(binaxis='y', stackdir='center', stackratio=1.5, dotsize=0.5) +
+  labs(title = "Significant Difference Between Posts That Include Tag=(Warehouse)", x="Warehouse Jobs Fill Quicker") + scale_x_discrete(labels=c("0" = "No Warehouse", "1" = "Warehouse"))
 
+```
 
+```{r}
+denver.driver$salary.bucket <- factor(denver.driver$salary.bucket, levels=c("Low", "Medium", "High"))
+ggplot(data = denver.driver, mapping = aes(x = as.factor(salary.bucket), y = log(time_to_fill))) + 
+         geom_boxplot() +
+  labs(title = "Denver Driving Jobs, Time-To-Fill By Salary Category", x="Under $30k Low,   $30k-$50k Medium,   Over $50k High" )
+
+```
 
 
