@@ -1,0 +1,156 @@
+---
+title: "HR"
+author: "Joe Kupresanin"
+date: "12/1/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# library
+library(readr)
+library(tidyverse)
+library(ggplot2)
+
+# read data
+data_full <- read_csv('Manu_data_200000.csv')
+data_full<-data_full[,-c(1,17,19)]
+```
+
+# Just look at Denver Drivers as an example to simplify
+
+```{r}
+# 412 jobs
+denver.driver <- filter(data_full, role %in% c("Truck Driver", "Driver", "CDL Driver"), region_state=="Denver-Aurora, CO MSA")
+
+# Remove jobs only posted for 0 or 1 day
+# 387 jobs, NA removed by default
+denver.driver <- filter(denver.driver, time_to_fill > 1)
+
+# Push the job id to the end
+denver.driver$job_id_end <- denver.driver$job_id
+denver.driver <- denver.driver[-c(1)]
+denver.driver$region <- ifelse(denver.driver$city == "Denver", "Denver", ifelse(denver.driver$city == "Aurora", "Aurora", "Other"))
+denver.driver$region <- as.factor(denver.driver$region)
+denver.driver$region <- relevel(denver.driver$region, "Other")
+```
+
+```{r}
+ggplot(data = denver.driver, mapping = aes(x=salary, y=time_to_fill)) +
+  geom_point(mapping = aes(color = region)) +
+  geom_smooth(mapping = aes(x = salary, y=time_to_fill, color=region), se=FALSE)
+```
+
+```{r}
+# Try to predict time to fill based on salary, region = ("Other", "Denver", "Aurora")
+den.driver.model <- lm(time_to_fill ~ salary + region, data=denver.driver)
+summary(den.driver.model)
+```
+
+```{r}
+# Remove extra high salaries (Many jobs have "accounting" in tags)
+
+# 373 jobs, NA removed by default
+denver.driver <- filter(denver.driver, salary < 100000)
+```
+
+```{r}
+ggplot(data = denver.driver, mapping = aes(x=salary, y=time_to_fill)) +
+  geom_point(mapping = aes(color = region)) +
+  geom_smooth(mapping = aes(x = salary, y=time_to_fill, color=region), se=FALSE)
+```
+
+```{r}
+# Try to predict time to fill based on salary, region = ("Other", "Denver", "Aurora")
+den.driver.model <- lm(time_to_fill ~ salary + region, data=denver.driver)
+summary(den.driver.model)
+
+# Inside / Outside Denver or Aurora or suberbs does not matter
+```
+
+# There was barely a relationship between "time_to_fill" and "salary" or "region = Denver, Aurora, Other" and when outliers removed, things are even worse. 
+
+# Add indicator tags to determine if there are any relationships with the top driving tags:
+# "Safety", "High School Diploma", "Training", "Transportation", "Customer Service", "Commercial", "Warehouse"
+
+```{r}
+denver.driver$safety <- as.numeric(str_detect(denver.driver$tags, "Safety"))
+denver.driver$diploma <- as.numeric(str_detect(denver.driver$tags, "High School Diploma"))
+denver.driver$training <- as.numeric(str_detect(denver.driver$tags, "Training"))
+denver.driver$transportation <- as.numeric(str_detect(denver.driver$tags, "Transportation"))
+denver.driver$cust.serv <- as.numeric(str_detect(denver.driver$tags, "Customer Service"))
+denver.driver$commercial <- as.numeric(str_detect(denver.driver$tags, "Commercial"))
+denver.driver$warehouse <- as.numeric(str_detect(denver.driver$tags, "Warehouse"))
+
+```
+
+```{r}
+denver.driver$post_date<-as.Date(denver.driver$post_date,"%m/%d/%Y")
+denver.driver$fill_date<-as.Date(denver.driver$fill_date,"%m/%d/%Y")
+```
+
+```{r}
+# Average time to fill driving jobs in Denver
+# Month 1 = August 2017
+# Month 12 = July 2018
+library(lubridate)
+denver.driver %>%
+  mutate(month = month(post_date)) %>%
+  group_by(month) %>%
+  summarize(avg_time_to_fill = mean(time_to_fill), n=n()) %>%
+  ggplot(aes(month, avg_time_to_fill)) + 
+  geom_line()
+
+```
+
+```{r}
+# Driver job postings by week in Denven
+
+denver.driver %>%
+  count(week = floor_date(post_date, "week")) %>%
+  ggplot(aes(week, n)) + 
+  geom_line()
+
+
+```
+
+```{r}
+denver.driver$quarter1 <- ifelse(month(denver.driver$post_date) %in% c(1, 2, 3), 1, 0) 
+denver.driver$quarter2 <- ifelse(month(denver.driver$post_date) %in% c(4, 5, 6), 1, 0)
+denver.driver$quarter3 <- ifelse(month(denver.driver$post_date) %in% c(7, 8, 9), 1, 0) 
+denver.driver$quarter4 <- ifelse(month(denver.driver$post_date) %in% c(10, 11, 12), 1, 0)
+```
+
+
+```{r}
+library(MASS)
+full.den.driver.model <- lm(log(time_to_fill) ~ log(salary) + region + safety + diploma + transportation + cust.serv + training + commercial + warehouse + quarter1 + quarter2 + quarter3, data=denver.driver)
+summary(full.den.driver.model)
+
+```
+
+```{r}
+step.denver.driver.model <- stepAIC(full.den.driver.model, direction="both", trace=FALSE)
+summary(step.denver.driver.model)
+```
+
+```{r}
+plot(step.denver.driver.model)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
