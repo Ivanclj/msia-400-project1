@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 # Sharon
 library(ggplot2)
+library(tidyverse)
 # Read data, delete repeated columns and format date
 # 200,000 jobs
 data <- read.csv('Manu_data_200000.csv')
@@ -21,6 +22,22 @@ df$post_date <- as.character(df$post_date)
 
 df$post_date <- as.Date(df[["post_date"]], "%m/%d/%Y")
 df$fill_date <- as.Date(df[["fill_date"]], "%m/%d/%Y")
+
+# Add Combined Statistical Areas to 11 top markets
+# 2017 Estimates from Wikipedia
+# NY, LA, CHI, DC, SF, DAL, BOS, ATL, DET, PHI, SJ
+
+df$csa <- ifelse(df$region_state=="New York-Northern New Jersey-Long Island, NY-NJ-PA MSA", 23876155, 
+                 ifelse(df$region_state=="Los Angeles-Long Beach-Santa Ana, CA MSA", 18788800,
+                 ifelse(df$region_state=="Chicago-Naperville-Joliet, IL-IN-WI MSA", 9901711, 
+                ifelse(df$region_state=="Washington-Arlington-Alexandria, DC-VA-MD-WV MSA", 9764315, 
+                ifelse(df$region_state=="San Francisco-Oakland-Fremont, CA MSA", 4727357, 
+                ifelse(df$region_state=="Dallas-Fort Worth-Arlington, TX MSA", 7846293,
+                ifelse(df$region_state=="Boston-Cambridge-Quincy, MA-NH MSA", 8233270, 
+                ifelse(df$region_state=="Atlanta-Sandy Springs-Marietta, GA MSA", 6555956, 
+                ifelse(df$region_state=="Detroit-Warren-Livonia, MI MSA", 5336286,
+                ifelse(df$region_state=="Philadelphia-Camden-Wilmington, PA-NJ-DE-MD MSA", 7206807,
+                ifelse(df$region_state=="San Jose-Sunnyvale-Santa Clara, CA MSA", 1998463,NA)))))))))))
 
 # Aggregate Engineer and Driver jobs
 # All Engineers combined (Electrical, Mechanical)
@@ -93,6 +110,7 @@ cbm <- aggregate(cbind(count = job_id) ~ Month_Yr+role,
 cbm <- merge(cbm, total_job, by = 'Month_Yr', all = TRUE)
 cbm$ratio <- cbm$count.x / cbm$count.y
 cbm <- cbm[cbm$Month_Yr > "2017-07", ]
+
 # plot over time for all regions
 # both driver and engineer
 ggplot(data = cbm, aes(x = factor(Month_Yr), y = ratio, color= role)) +
@@ -106,12 +124,125 @@ ggplot(data = cbm, aes(x = factor(Month_Yr), y = ratio, color= role)) +
 # ```{r}
 # # plot ratio for engineer
 # ggplot(data = cbm[cbm$role=='Engineer',], aes(x = factor(Month_Yr), y = ratio, color~role)) +
-#   geom_line(aes(group=role)) + geom_point() +
-#   ggtitle('Engineer') + 
+# geom_line(aes(group=role)) + geom_point() + 
+#   ggtitle('Engineer Jobs as a Proportion of All Manufacturing Jobs') +
 #   xlab('Year-Month') +
-#   ylab('Ratio of Job Posting') + 
+#   ylab('Ratio of Job Posting') +
 #   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 # ```
+```{r}
+
+# total job count by month_year
+total_job_sj <- aggregate(cbind(count = job_id) ~ Month_Yr, 
+          data = df[df$region_state=="San Jose-Sunnyvale-Santa Clara, CA MSA", ], 
+          FUN = function(x){NROW(x)})
+
+total_job_sf <- aggregate(cbind(count = job_id) ~ Month_Yr, 
+          data = df[df$region_state=="San Francisco-Oakland-Fremont, CA MSA", ], 
+          FUN = function(x){NROW(x)})
+
+# job count by month_year of engineer
+cbm_sj <- aggregate(cbind(count = job_id) ~ Month_Yr+role, 
+          data = df[which(df$role=='Engineer' & df$region_state=="San Jose-Sunnyvale-Santa Clara, CA MSA"),], 
+          FUN = function(x){NROW(x)})
+
+cbm_sf <- aggregate(cbind(count = job_id) ~ Month_Yr+role, 
+          data = df[which(df$role=='Engineer' & df$region_state=="San Francisco-Oakland-Fremont, CA MSA"),], 
+          FUN = function(x){NROW(x)})
+
+# get ratio of job counts (rescale)
+cbm_sj <- merge(cbm_sj, total_job_sj, by = 'Month_Yr', all = TRUE)
+cbm_sj$ratio <- cbm_sj$count.x / cbm_sj$count.y
+cbm_sj <- cbm_sj[cbm_sj$Month_Yr > "2017-07", ]
+cbm_sj$region = "San Jose"
+
+cbm_sf <- merge(cbm_sf, total_job_sf, by = 'Month_Yr', all = TRUE)
+cbm_sf$ratio <- cbm_sf$count.x / cbm_sf$count.y
+cbm_sf <- cbm_sf[cbm_sf$Month_Yr > "2017-07", ]
+cbm_sf$region = "San Francisco"
+
+cbm <- rbind(cbm_sj, cbm_sf)
+# plot over time for all regions
+# both driver and engineer
+
+
+ggplot(data=cbm, aes(x = factor(Month_Yr), y = ratio, color=region)) +
+  geom_line(aes(group=region)) + geom_point() +
+  xlab('Year-Month') +
+  ylab('Ratio of Job Posting') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title="Engineering Proportion of Manufacturing Vertical, 8/2017 to 7/2018")
+```
+
+```{r}
+
+# total job count by month_year
+total_job_det <- aggregate(cbind(count = job_id) ~ Month_Yr, 
+          data = df[df$region_state=="Detroit-Warren-Livonia, MI MSA", ], 
+          FUN = function(x){NROW(x)})
+
+total_job_chi <- aggregate(cbind(count = job_id) ~ Month_Yr, 
+          data = df[df$region_state=="Chicago-Naperville-Joliet, IL-IN-WI MSA", ], 
+          FUN = function(x){NROW(x)})
+
+total_job_atl <- aggregate(cbind(count = job_id) ~ Month_Yr, 
+          data = df[df$region_state=="Atlanta-Sandy Springs-Marietta, GA MSA", ], 
+          FUN = function(x){NROW(x)})
+
+total_job_phi <- aggregate(cbind(count = job_id) ~ Month_Yr, 
+          data = df[df$region_state=="Philadelphia-Camden-Wilmington, PA-NJ-DE-MD MSA", ], 
+          FUN = function(x){NROW(x)})
+
+# job count by month_year of engineer
+cbm_det <- aggregate(cbind(count = job_id) ~ Month_Yr+role, 
+          data = df[which(df$role=='Driver' & df$region_state=="Detroit-Warren-Livonia, MI MSA"),], 
+          FUN = function(x){NROW(x)})
+
+cbm_chi <- aggregate(cbind(count = job_id) ~ Month_Yr+role, 
+          data = df[which(df$role=='Driver' & df$region_state=="Chicago-Naperville-Joliet, IL-IN-WI MSA"),], 
+          FUN = function(x){NROW(x)})
+
+cbm_atl <- aggregate(cbind(count = job_id) ~ Month_Yr+role, 
+          data = df[which(df$role=='Driver' & df$region_state=="Atlanta-Sandy Springs-Marietta, GA MSA"),], 
+          FUN = function(x){NROW(x)})
+
+cbm_phi <- aggregate(cbind(count = job_id) ~ Month_Yr+role, 
+          data = df[which(df$role=='Driver' & df$region_state=="Philadelphia-Camden-Wilmington, PA-NJ-DE-MD MSA"),], 
+          FUN = function(x){NROW(x)})
+
+# get ratio of job counts (rescale)
+cbm_det <- merge(cbm_det, total_job_det, by = 'Month_Yr', all = TRUE)
+cbm_det$ratio <- cbm_det$count.x / cbm_det$count.y
+cbm_det <- cbm_det[cbm_det$Month_Yr > "2017-07", ]
+cbm_det$region = "Detroit"
+
+cbm_chi <- merge(cbm_chi, total_job_chi, by = 'Month_Yr', all = TRUE)
+cbm_chi$ratio <- cbm_chi$count.x / cbm_chi$count.y
+cbm_chi <- cbm_chi[cbm_chi$Month_Yr > "2017-07", ]
+cbm_chi$region = "Chicago"
+
+cbm_atl <- merge(cbm_atl, total_job_atl, by = 'Month_Yr', all = TRUE)
+cbm_atl$ratio <- cbm_atl$count.x / cbm_atl$count.y
+cbm_atl <- cbm_atl[cbm_atl$Month_Yr > "2017-07", ]
+cbm_atl$region = "Atlanta"
+
+cbm_phi <- merge(cbm_phi, total_job_phi, by = 'Month_Yr', all = TRUE)
+cbm_phi$ratio <- cbm_phi$count.x / cbm_phi$count.y
+cbm_phi <- cbm_phi[cbm_phi$Month_Yr > "2017-07", ]
+cbm_phi$region = "Philly"
+
+cbm <- rbind(cbm_det, cbm_chi, cbm_atl, cbm_phi)
+# plot over time for all regions
+# both driver and engineer
+
+
+ggplot(data=cbm, aes(x = factor(Month_Yr), y = ratio, color=region)) +
+  geom_line(aes(group=region)) + geom_point() +
+  xlab('Year-Month') +
+  ylab('Ratio of Job Posting') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title="Driving Proportion of Manufacturing Vertical, 8/2017 to 7/2018")
+```
 
 
 # ```{r}
@@ -132,11 +263,13 @@ ggplot(data = cbm, aes(x = factor(Month_Yr), y = ratio, color= role)) +
 total_job_state <- aggregate(cbind(count = job_id) ~ Month_Yr+region_state, 
           data = df, 
           FUN = function(x){NROW(x)})
+total_job_state <- total_job_state[total_job_state$Month_Yr > "2017-07", ]
 
 # job count by month_year and region state of engineer
 cbm_state <- aggregate(cbind(count = job_id) ~ Month_Yr+region_state, 
           data = df[which(df$role=='Engineer'),], 
           FUN = function(x){NROW(x)})
+cbm_state <- cbm_state[cbm_state$Month_Yr > "2017-07", ]
 
 # get ratio of job counts (rescale)
 cbm_state <- merge(cbm_state, total_job_state, by = c('Month_Yr', 'region_state'), all = TRUE)
@@ -149,23 +282,21 @@ cbs_e <- aggregate(cbind(count = job_id) ~ region_state,
                  FUN = function(x){NROW(x)})
 cbs_e <- cbs_e[order(-cbs_e$count), c(1,2)]
 top <- head(cbs_e[, 1],5)
-print(head(cbs_e,10))
+#print(head(cbs_e,10))
 
 # find data on top5 region 
 cbm_state_top <- cbm_state[is.element(cbm_state$region_state, top),]
 cbm_state_top <- cbm_state_top[cbm_state_top$Month_Yr > "2017-07", ]
+
 # plot ratio of time by state
 ggplot(data = cbm_state_top, aes(x = factor(Month_Yr), y = ratio, color = region_state)) +   
   geom_line(aes(group = region_state)) + geom_point() +
-  ggtitle('Engineer Job Postings') +
+  ggtitle('Engineer Job Postings, Top Five Metro Regions') +
   xlab('Year-Month') +
   ylab('Ratio of Job Posting') +
   theme(legend.position='right', 
         legend.text=element_text(size=5),
         axis.text.x = element_text(angle = 90, hjust = 1))
-
-
-
 ```
 
 ```{r}
@@ -174,11 +305,13 @@ ggplot(data = cbm_state_top, aes(x = factor(Month_Yr), y = ratio, color = region
 total_job_state <- aggregate(cbind(count = job_id) ~ Month_Yr+region_state, 
           data = df, 
           FUN = function(x){NROW(x)})
+total_job_state <- total_job_state[total_job_state$Month_Yr > "2017-07", ]
 
-# job count by month_year and region state of engineer
+# job count by month_year and region state of driver
 cbm_state <- aggregate(cbind(count = job_id) ~ Month_Yr+region_state, 
           data = df[which(df$role=='Driver'),], 
           FUN = function(x){NROW(x)})
+cbm_state <- cbm_state[cbm_state$Month_Yr > "2017-07", ]
 
 # get ratio of job counts (rescale)
 cbm_state <- merge(cbm_state, total_job_state, by = c('Month_Yr', 'region_state'), all = TRUE)
@@ -191,15 +324,16 @@ cbs_e <- aggregate(cbind(count = job_id) ~ region_state,
                  FUN = function(x){NROW(x)})
 cbs_e <- cbs_e[order(-cbs_e$count), c(1,2)]
 top <- head(cbs_e[, 1],5)
-print(head(cbs_e,10))
+#print(head(cbs_e,10))
 
 # find data on top5 region 
 cbm_state_top <- cbm_state[is.element(cbm_state$region_state, top),]
 cbm_state_top <- cbm_state_top[cbm_state_top$Month_Yr > "2017-07", ]
+
 # plot ratio of time by state
 ggplot(data = cbm_state_top, aes(x = factor(Month_Yr), y = ratio, color = region_state)) +   
   geom_line(aes(group = region_state)) + geom_point() +
-  ggtitle('Driver Job Postings') +
+  ggtitle('Driver Job Postings, Top Five Metro Regions') +
   xlab('Year-Month') +
   ylab('Ratio of Job Posting') +
   theme(legend.position='right', 
@@ -209,6 +343,22 @@ ggplot(data = cbm_state_top, aes(x = factor(Month_Yr), y = ratio, color = region
 
 
 ```
+
+```{r}
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
 
 
 
