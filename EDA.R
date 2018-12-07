@@ -17,20 +17,20 @@ data_full$post_date<-as.Date(data_full$post_date,"%Y-%m-%d")
 data_full$fill_date<-as.Date(data_full$fill_date,"%Y-%m-%d")
 
 
-# #treat NA, tof and salary are minor numbers, removed. Mainly impute for State
-data_full <- data_full[!is.na(data_full$salary) & !is.na(data_full$time_to_fill),] 
-library(mice)
-library(VIM)
-mice_plot <- aggr(data_full, col=c('navyblue','yellow'),
-                  numbers=TRUE, sortVars=TRUE,
-                  labels=names(data_full), cex.axis=.7,
-                  gap=3, ylab=c("Missing data","Pattern"))
-temp <- data_full[,c('post_date','fill_date','time_to_fill','salary','role','state')]
-temp$state <- as.factor(temp$state)
-tempData <- mice(temp,m=5,maxit=50,meth='pmm',seed=123)
-summary(tempData)
-
-tempData$imp$state
+# # #treat NA, tof and salary are minor numbers, removed. Mainly impute for State
+# data_full <- data_full[!is.na(data_full$salary) & !is.na(data_full$time_to_fill),] 
+# library(mice)
+# library(VIM)
+# mice_plot <- aggr(data_full, col=c('navyblue','yellow'),
+#                   numbers=TRUE, sortVars=TRUE,
+#                   labels=names(data_full), cex.axis=.7,
+#                   gap=3, ylab=c("Missing data","Pattern"))
+# temp <- data_full[,c('post_date','fill_date','time_to_fill','salary','role','state')]
+# temp$state <- as.factor(temp$state)
+# tempData <- mice(temp,m=5,maxit=50,meth='pmm',seed=123)
+# summary(tempData)
+# 
+# tempData$imp$state
 # plot trend
 tmp <- data_full %>% mutate('mydate' = format(as.Date(post_date),'%Y-%m'))%>% 
   group_by(mydate) %>% summarise(num = n())
