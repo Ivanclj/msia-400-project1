@@ -1,0 +1,421 @@
+---
+title: "PalantirDec6"
+author: "Palantir"
+date: "12/6/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Sharon
+library(ggplot2)
+# Read data, delete repeated columns and format date
+# 200,000 jobs
+data <- read.csv('Manu_data_200000.csv')
+drops <- c("job_id.1","job_id.2")
+df <- data[, !(names(data) %in% drops)]
+df$post_date <- as.character(df$post_date)
+
+df$post_date <- as.Date(df[["post_date"]], "%m/%d/%Y")
+df$fill_date <- as.Date(df[["fill_date"]], "%m/%d/%Y")
+
+# Aggregate Engineer and Driver jobs
+# All Engineers combined (Electrical, Mechanical)
+# All Drivers combined (Truck, CDL, etc)
+index1 <- grep('Engineer', df$role, perl=TRUE)
+df$role[index1] <- 'Engineer'
+index2 <- grep('Driver', df$role, perl=TRUE)
+df$role[index2] <- 'Driver'
+
+# 181,608 jobs
+# Delete jobs with time_to_fill under 2 or over 123 days
+# Why? Fill time too short, might just be internal posting request
+# Why? Forgotten about postings
+df <- df[df$time_to_fill>2 & df$time_to_fill<123, ]
+
+# Format month year
+df$Month_Yr <- format(as.Date(df$post_date), "%Y-%m")
+```
+
+# Calculate job posting of selected roles and plot
+```{r}
+
+# group and count job id by month for Engineer and Driver
+cbm <- aggregate(cbind(count = job_id) ~ Month_Yr+role, 
+          data = df[df$role=='Engineer' | df$role=='Driver',], 
+          FUN = function(x){NROW(x)})
+
+# plot over time for all regions
+ggplot(data = cbm, aes(x = factor(Month_Yr), y = count, color = role)) +   
+  geom_line(aes(group = role)) + geom_point() +
+  xlab('Year-Month') +
+  ylab('Count') +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title="Monthly Job Postings (Nationwide, Manufacturing Vertical)")
+
+```
+
+# Calculate job posting of selected roles and plot
+# August 2017 - July 2018
+```{r}
+
+# group and count job id by month for Engineer and Driver
+cbm <- cbm[cbm$Month_Yr > "2017-07", ]
+
+# plot over time for all regions
+ggplot(data = cbm, aes(x = factor(Month_Yr), y = count, color = role)) +   
+  geom_line(aes(group = role)) + geom_point() +
+  xlab('Year-Month') +
+  ylab('Count') +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title="Monthly Job Postings, 8/2017 to 7/2018 (Nationwide, Manufacturing Vertical)")
+
+```
+
+# time series analysis
+# calculate and plot ratio of job count
+```{r}
+
+# total job count by month_year
+total_job <- aggregate(cbind(count = job_id) ~ Month_Yr, 
+          data = df, 
+          FUN = function(x){NROW(x)})
+
+# job count by month_year of engineer and driver
+cbm <- aggregate(cbind(count = job_id) ~ Month_Yr+role, 
+          data = df[which(df$role=='Engineer'|df$role=='Driver'),], 
+          FUN = function(x){NROW(x)})
+
+# get ratio of job counts (rescale)
+cbm <- merge(cbm, total_job, by = 'Month_Yr', all = TRUE)
+cbm$ratio <- cbm$count.x / cbm$count.y
+cbm <- cbm[cbm$Month_Yr > "2017-07", ]
+# plot over time for all regions
+# both driver and engineer
+ggplot(data = cbm, aes(x = factor(Month_Yr), y = ratio, color= role)) +
+  geom_line(aes(group=role)) + geom_point() +
+  xlab('Year-Month') +
+  ylab('Ratio of Job Posting') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title="Proportion of Manufacturing Vertical, 8/2017 to 7/2018 (Nationwide)")
+```
+
+# ```{r}
+# # plot ratio for engineer
+# ggplot(data = cbm[cbm$role=='Engineer',], aes(x = factor(Month_Yr), y = ratio, color~role)) +
+#   geom_line(aes(group=role)) + geom_point() +
+#   ggtitle('Engineer') + 
+#   xlab('Year-Month') +
+#   ylab('Ratio of Job Posting') + 
+#   theme(axis.text.x = element_text(angle = 90, hjust = 1))
+# ```
+
+
+# ```{r}
+# # plot ratio for driver
+# ggplot(data = cbm[cbm$role=='Driver',], aes(x = factor(Month_Yr), y = ratio, color~role)) +
+#   geom_line(aes(group=role)) + geom_point() +
+#   ggtitle('Driver') + 
+#   xlab('Year-Month') +
+#   ylab('Ratio of Job Posting') + 
+#   theme(axis.text.x = element_text(angle = 90, hjust = 1))
+# ```
+
+# cross market analysis
+# ratio of Engineer by region_state (same code for driver: replacing Engineer with Driver)
+```{r}
+
+# total job count by month_year and region_state
+total_job_state <- aggregate(cbind(count = job_id) ~ Month_Yr+region_state, 
+          data = df, 
+          FUN = function(x){NROW(x)})
+
+# job count by month_year and region state of engineer
+cbm_state <- aggregate(cbind(count = job_id) ~ Month_Yr+region_state, 
+          data = df[which(df$role=='Engineer'),], 
+          FUN = function(x){NROW(x)})
+
+# get ratio of job counts (rescale)
+cbm_state <- merge(cbm_state, total_job_state, by = c('Month_Yr', 'region_state'), all = TRUE)
+cbm_state[is.na(cbm_state)] <- 0
+cbm_state$ratio <- cbm_state$count.x / cbm_state$count.y
+
+# find top 5 regions having largest job count of engineer
+cbs_e <- aggregate(cbind(count = job_id) ~ region_state,
+                 data = df[df$role=='Engineer',],
+                 FUN = function(x){NROW(x)})
+cbs_e <- cbs_e[order(-cbs_e$count), c(1,2)]
+top <- head(cbs_e[, 1],5)
+print(head(cbs_e,10))
+
+# find data on top5 region 
+cbm_state_top <- cbm_state[is.element(cbm_state$region_state, top),]
+cbm_state_top <- cbm_state_top[cbm_state_top$Month_Yr > "2017-07", ]
+# plot ratio of time by state
+ggplot(data = cbm_state_top, aes(x = factor(Month_Yr), y = ratio, color = region_state)) +   
+  geom_line(aes(group = region_state)) + geom_point() +
+  ggtitle('Engineer Job Postings') +
+  xlab('Year-Month') +
+  ylab('Ratio of Job Posting') +
+  theme(legend.position='right', 
+        legend.text=element_text(size=5),
+        axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+
+```
+
+```{r}
+
+# total job count by month_year and region_state
+total_job_state <- aggregate(cbind(count = job_id) ~ Month_Yr+region_state, 
+          data = df, 
+          FUN = function(x){NROW(x)})
+
+# job count by month_year and region state of engineer
+cbm_state <- aggregate(cbind(count = job_id) ~ Month_Yr+region_state, 
+          data = df[which(df$role=='Driver'),], 
+          FUN = function(x){NROW(x)})
+
+# get ratio of job counts (rescale)
+cbm_state <- merge(cbm_state, total_job_state, by = c('Month_Yr', 'region_state'), all = TRUE)
+cbm_state[is.na(cbm_state)] <- 0
+cbm_state$ratio <- cbm_state$count.x / cbm_state$count.y
+
+# find top 5 regions having largest job count of engineer
+cbs_e <- aggregate(cbind(count = job_id) ~ region_state,
+                 data = df[df$role=='Driver',],
+                 FUN = function(x){NROW(x)})
+cbs_e <- cbs_e[order(-cbs_e$count), c(1,2)]
+top <- head(cbs_e[, 1],5)
+print(head(cbs_e,10))
+
+# find data on top5 region 
+cbm_state_top <- cbm_state[is.element(cbm_state$region_state, top),]
+cbm_state_top <- cbm_state_top[cbm_state_top$Month_Yr > "2017-07", ]
+# plot ratio of time by state
+ggplot(data = cbm_state_top, aes(x = factor(Month_Yr), y = ratio, color = region_state)) +   
+  geom_line(aes(group = region_state)) + geom_point() +
+  ggtitle('Driver Job Postings') +
+  xlab('Year-Month') +
+  ylab('Ratio of Job Posting') +
+  theme(legend.position='right', 
+        legend.text=element_text(size=5),
+        axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+
+```
+
+
+
+
+#######################
+#######################
+
+#           IVAN PUT CODE IN HERE PLEASE
+
+#######################
+#######################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+# libraries
+library(readr)
+library(tidyverse)
+library(ggplot2)
+
+# read data
+# A random sample of 200,000 job postings were selected from the vertical
+
+data_full <- read_csv('Manu_data_200000.csv')
+
+# Remove duplicate columns
+data_full<-data_full[,-c(1,17,19)]
+```
+
+# Just look at Denver Drivers as an example to simplify
+# Why?  Noise in the job market - many types of jobs, many differing regions
+
+```{r}
+# 412 jobs
+denver.driver <- filter(data_full, role %in% c("Truck Driver", "Driver", "CDL Driver"), region_state=="Denver-Aurora, CO MSA")
+# Remove jobs only posted for 0 or 1 day
+# 387 jobs, NA removed by default
+denver.driver <- filter(denver.driver, time_to_fill > 1)
+# Push the job id to the end
+denver.driver$job_id_end <- denver.driver$job_id
+denver.driver <- denver.driver[-c(1)]
+denver.driver$region <- ifelse(denver.driver$city == "Denver", "Denver", ifelse(denver.driver$city == "Aurora", "Aurora", "Other"))
+denver.driver$region <- as.factor(denver.driver$region)
+denver.driver$region <- relevel(denver.driver$region, "Other")
+```
+
+```{r}
+ggplot(data = denver.driver, mapping = aes(x=salary, y=time_to_fill)) +
+  geom_point(mapping = aes(color = region)) +
+  geom_smooth(mapping = aes(x = salary, y=time_to_fill, color=region), se=FALSE)
+```
+
+```{r}
+# Try to predict time to fill based on salary, region = ("Other", "Denver", "Aurora")
+den.driver.model <- lm(time_to_fill ~ salary + region, data=denver.driver)
+summary(den.driver.model)
+```
+
+```{r}
+# Remove extra high salaries (Many jobs have "accounting" in tags)
+# 373 jobs, NA removed by default
+denver.driver <- filter(denver.driver, salary < 100000)
+```
+
+```{r}
+ggplot(data = denver.driver, mapping = aes(x=salary, y=time_to_fill)) +
+  geom_point(mapping = aes(color = region)) +
+  geom_smooth(mapping = aes(x = salary, y=time_to_fill, color=region), se=FALSE)
+```
+
+```{r}
+# Try to predict time to fill based on salary, region = ("Other", "Denver", "Aurora")
+den.driver.model <- lm(time_to_fill ~ salary + region, data=denver.driver)
+summary(den.driver.model)
+# Inside / Outside Denver or Aurora or suberbs does not matter
+```
+
+# There was barely a relationship between "time_to_fill" and "salary" or "region = Denver, Aurora, Other" and when outliers removed, things are even worse. 
+
+# Add indicator tags to determine if there are any relationships with the top driving tags:
+# "Safety", "High School Diploma", "Training", "Transportation", "Customer Service", "Commercial", "Warehouse"
+
+```{r}
+denver.driver$safety <- as.numeric(str_detect(denver.driver$tags, "Safety"))
+denver.driver$diploma <- as.numeric(str_detect(denver.driver$tags, "High School Diploma"))
+denver.driver$training <- as.numeric(str_detect(denver.driver$tags, "Training"))
+denver.driver$transportation <- as.numeric(str_detect(denver.driver$tags, "Transportation"))
+denver.driver$cust.serv <- as.numeric(str_detect(denver.driver$tags, "Customer Service"))
+denver.driver$commercial <- as.numeric(str_detect(denver.driver$tags, "Commercial"))
+denver.driver$warehouse <- as.numeric(str_detect(denver.driver$tags, "Warehouse"))
+```
+
+```{r}
+denver.driver$post_date<-as.Date(denver.driver$post_date,"%m/%d/%Y")
+denver.driver$fill_date<-as.Date(denver.driver$fill_date,"%m/%d/%Y")
+```
+
+```{r}
+# Average time to fill driving jobs in Denver
+# Month 1 = August 2017
+# Month 12 = July 2018
+library(lubridate)
+```
+
+```{r}
+# Driver job postings by week in Denver
+denver.driver %>%
+  count(week = floor_date(post_date, "week")) %>%
+  ggplot(aes(week, n)) + 
+  geom_line() +
+  labs(title = "Denver Driving Jobs (August 2017-July 2017), Job Posts Per Week")
+```
+
+```{r}
+denver.driver$quarter1 <- ifelse(month(denver.driver$post_date) %in% c(1, 2, 3), 1, 0) 
+denver.driver$quarter2 <- ifelse(month(denver.driver$post_date) %in% c(4, 5, 6), 1, 0)
+denver.driver$quarter3 <- ifelse(month(denver.driver$post_date) %in% c(7, 8, 9), 1, 0) 
+denver.driver$quarter4 <- ifelse(month(denver.driver$post_date) %in% c(10, 11, 12), 1, 0)
+```
+
+```{r}
+denver.driver$salary.bucket <- ifelse(denver.driver$salary < 30000, "Low", ifelse(denver.driver$salary < 50000, "Medium", "High"))
+```
+
+```{r}
+library(MASS)
+full.den.driver.model <- lm(log(time_to_fill) ~ log(salary) + region + safety + diploma + transportation + cust.serv + training + commercial + warehouse + quarter1 + quarter2 + quarter3 + salary.bucket, data=denver.driver)
+summary(full.den.driver.model)
+```
+
+```{r}
+step.denver.driver.model <- stepAIC(full.den.driver.model, direction="both", trace=FALSE)
+summary(step.denver.driver.model)
+```
+
+```{r}
+plot(step.denver.driver.model)
+```
+
+```{r}
+ggplot(data = denver.driver, mapping = aes(x=log(salary), y=log(time_to_fill))) +
+  geom_point(mapping = aes(color = region)) +
+  geom_smooth(mapping = aes(x = log(salary), y=log(time_to_fill), color=region), se=FALSE) +
+  labs(title = "Denver Driving Jobs (August 2017-July 2017)")
+```
+
+```{r}
+denver.driver$quarter <- ifelse(denver.driver$quarter1 == 1, 1, ifelse(denver.driver$quarter2 == 1, 2, ifelse(denver.driver$quarter3 == 1, 3, 4)))
+denver.driver$quarter <- factor(denver.driver$quarter, levels=c(3,4,1,2))
+```
+
+```{r}
+ggplot(data = denver.driver, mapping = aes(x = as.factor(quarter), y = log(time_to_fill))) + 
+         geom_boxplot() +
+  labs(title = "Denver Driving Jobs Took Longer to Fill in 3rd, 4th Quarter 2017", x="3rd / 4th Quarter 2017                                                1st / 2nd Quarter 2018" )
+```
+
+
+```{r}
+g1 <- ggplot(data = denver.driver, mapping = aes(x = region, y = log(time_to_fill))) + 
+         geom_violin(trim=FALSE) +
+  labs(title = "No Significant Difference Between Denver / Aurora / Suburbs", x="Greater Denver Area Driver Jobs")
+g1 + geom_dotplot(binaxis="y", stackdir='center', dotsize=1)
+```
+
+```{r}
+ggplot(data = denver.driver, mapping = aes(x = as.factor(transportation), y = log(time_to_fill))) + 
+         geom_dotplot(binaxis='y', stackdir='center', stackratio=1.5, dotsize=0.5) +
+  labs(title = "Significant Difference Between Posts That Include Tag=(Transportation)", x="Transportation Jobs Fill Slower") + scale_x_discrete(labels=c("0" = "No Transportation", "1" = "Transportation"))
+```
+
+```{r}
+ggplot(data = denver.driver, mapping = aes(x = as.factor(warehouse), y = log(time_to_fill))) + 
+         geom_dotplot(binaxis='y', stackdir='center', stackratio=1.5, dotsize=0.5) +
+  labs(title = "Significant Difference Between Posts That Include Tag=(Warehouse)", x="Warehouse Jobs Fill Quicker") + scale_x_discrete(labels=c("0" = "No Warehouse", "1" = "Warehouse"))
+```
+
+```{r}
+denver.driver$salary.bucket <- factor(denver.driver$salary.bucket, levels=c("Low", "Medium", "High"))
+ggplot(data = denver.driver, mapping = aes(x = as.factor(salary.bucket), y = log(time_to_fill))) + 
+         geom_boxplot() +
+  labs(title = "Denver Driving Jobs, Time-To-Fill By Salary Category", x="Under $30k Low,   $30k-$50k Medium,   Over $50k High" )
+```
