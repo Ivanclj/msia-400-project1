@@ -626,46 +626,84 @@ sum_drivers1 <- all_drivers1 %>% group_by(role) %>% summarise(
 library(ggpubr)
 ggboxplot(all_drivers, x = "role", y = "salary", fill = 'role',
           palette = 'magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7))
+```
+
+```{r}
 # trend of the ten groups salary
 ggline(all_drivers, x = "role", y = "salary", color = "role",
        add = c("mean_se",'violin'),
        palette ='magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7))
+```
+
+```{r}
 # Filter out the extreme groups and values
 dri.large.role <- sum_drivers$role[sum_drivers$num>(nrow(all_drivers)*0.01)] 
 all_drivers.filterd <- all_drivers[all_drivers$role %in% dri.large.role, ]
 summary(all_drivers.filterd$salary)
+length(all_drivers.filterd$salary)
+```
+
+
+```{r}
 ## get the 80% tiles of salary
 dri.tiles <- ntile(all_drivers.filterd$salary,10)
 all_drivers.filterd <- all_drivers.filterd[dri.tiles>=2 & dri.tiles <=9,]
 table(all_drivers.filterd$role) %>% sort(decreasing = T)
+```
+
+```{r}
 ggboxplot(all_drivers.filterd, x = "role", y = "salary", fill = 'role',
           palette = 'magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7))
+```
+
+```{r}
 # trend of the ten groups salary
-ggline(all_drivers.filterd, x = "role", y = "salary", color = "role",
+ggline(all_drivers.filterd, x = "role", y = "salary", color = "role", 
        add = c("mean_se",'violin'),
        palette ='magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7))
+```
+```{r}
 # boxplots of ten groups time to fill
 ggboxplot(all_drivers, x = "role", y = "time_to_fill", fill = 'role',
           palette = 'magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7))
+```
+
+```{r}
 # trend of the ten groups salary
 ggline(all_drivers, x = "role", y = "time_to_fill", color = "role",
        add = c("mean_se",'violin'),
        palette ='magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7))
+```
+
+```{r}
 # Filter out the extreme groups and values
 dri.large.role <- sum_drivers$role[sum_drivers$num>(nrow(all_drivers)*0.01)] 
 all_drivers.filterd <- all_drivers[all_drivers$role %in% dri.large.role, ]
 summary(all_drivers.filterd$time_to_fill)
+```
+
+```{r}
 ## get the 80% tiles of salary
 dri.tiles <- ntile(all_drivers.filterd$time_to_fill,10)
 all_drivers.filterd <- all_drivers.filterd[dri.tiles>=2 & dri.tiles <=8,]
 table(all_drivers.filterd$role) %>% sort(decreasing = T)
+```
+
+```{r}
 ## plot again
 ggboxplot(all_drivers.filterd, x = "role", y = "time_to_fill", fill = 'role',
           palette = 'magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7))
+```
+
+```{r}
 # trend of the ten groups
 ggline(all_drivers.filterd, x = "role", y = "time_to_fill", color = "role",
        add = c("mean_se",'violin'),
-       palette ='magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7)) # distribution looked similar
+       palette ='magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7)) 
+# distribution looked similar
+```
+
+```{r}
 ## check if all enginnering/drivers role following similar skill distribution and total count
 # get data frame contains each role and its top 5 tags
 dri.tags <- data_full %>% filter(role %in% unique_drivers) %>% 
@@ -673,64 +711,127 @@ dri.tags <- data_full %>% filter(role %in% unique_drivers) %>%
   group_by(role,tags) %>% summarise(num = n()) %>% top_n(10,num) %>% 
   arrange(role,desc(num)) %>% ungroup()
 sort(table(dri.tags$tags),decreasing = T)
+```
+
+```{r}
 dri.tags.max.num <- dri.tags %>% group_by(role) %>% summarise(max_num = max(num)) 
 dri.tags.max.num <- dri.tags.max.num[dri.tags.max.num$max_num > 100,]
 dri.tags <- inner_join(dri.tags,dri.tags.max.num, by = 'role')
 dri.tags$perc <- dri.tags$num/dri.tags$max_num
+```
+
+```{r}
 # reshape it to calculate similarity
 wide.dri.tags <- dcast(dri.tags,role~tags,value.var = 'perc' )
 wide.dri.tags[is.na(wide.dri.tags)] <- 0
 # quick clustering
 d <- dist(wide.dri.tags,method = 'euclidean') # distance matrix
 d # distance similar, safe to combine drivers together
+```
+
+```{r}
 #combine roles 
 unique_engineer <- unique_engineer[unique_engineer!= 'Engineer']
 unique_drivers <- unique_drivers[unique_drivers!= 'Driver']
 data_full$role[data_full$role %in% unique_engineer] <- 'Engineer'
 data_full$role[data_full$role %in% unique_drivers] <- 'Driver'
+```
+
+
+```{r}
 #Engineering/driver job demand trend (number of engineer/driver job over total jobs that month)
-tmp <- data_full %>% mutate('mydate' = format(as.Date(post_date),'%Y-%m')) %>% 
-  group_by(mydate,role) %>% summarise(num = n())
-x <- (tmp %>% filter(role %in% c('Engineer','Driver')) %>% group_by(mydate,role)%>%
+tmp <- data_full %>% 
+  mutate('mydate' = format(as.Date(post_date),'%Y-%m')) %>% 
+  group_by(mydate,role) %>% 
+  summarise(num = n())
+
+x <- (tmp %>% filter(role %in% c('Engineer','Driver')) %>% 
+        group_by(mydate,role)%>%
         summarise(num = sum(num)))
+
 y <- (tmp %>% group_by(mydate) %>% summarise(num = sum(num)))
+
 tmp <- merge(x,y, by = 'mydate')
+
 tmp$rate <- tmp$num.x/tmp$num.y
+
 for(ii in 1:nrow(tmp)){
   tmp$mydate[ii] <- paste(tmp$mydate[ii],'-01',sep = '')
 }
+
 tmp$mydate <- as.Date(tmp$mydate,'%Y-%m-%d')
-ggplot(data = tmp, aes(x = mydate, y = rate, color = role)) + geom_line() # after 2017 07 much stabler.
-#summraise rates
+ggplot(data = tmp, aes(x = mydate, y = rate, color = role)) + geom_line() 
+# after 2017 07 much stabler.
+```
+
+
+
+```{r}
+#summerise rates
 summary(tmp[tmp$role == 'Engineer','rate'])
 summary(tmp[tmp$role == 'Driver','rate'])
+```
+
+
+```{r}
 ## Split to Drivers and Engineers
-#check time to fill and salary distribution
+# check time to fill and salary distribution
 data_engineer <- data_full[data_full$role =='Engineer',]
 data_driver <- data_full[data_full$role == 'Driver',]
+```
+
+```{r}
 summary(data_engineer$time_to_fill)
 summary(data_engineer$salary)
 summary(data_driver$time_to_fill)
 summary(data_driver$salary)
-ggboxplot(rbind(data_engineer,data_driver), x = "role", y = "time_to_fill", fill = 'role',
-          palette = 'magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7)) # although mean close, engineers seems to take longer to fill
+```
+
+```{r}
+ggboxplot(rbind(data_engineer,data_driver), x = "role", y = "time_to_fill", fill = 'role', palette = 'magma') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7)) 
+# although mean close, engineers seems to take longer to fill
+```
+
+```{r}
 ggboxplot(rbind(data_engineer,data_driver), x = "role", y = "salary", fill = 'role',
-          palette = 'magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7)) # engineers salary higher on average
+          palette = 'magma') + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7)) 
+# engineers salary higher on average
+```
+
+```{r}
 # kept only 80% inner quantile of all salaries
 eng.tiles <- ntile(data_engineer$salary,10)
 data_engineer <- data_engineer[eng.tiles>=2 & eng.tiles <=9,] #much more normal
+```
+
+```{r}
 dri.tiles <- ntile(data_driver$salary,10)
 data_driver <- data_driver[dri.tiles>=2 & dri.tiles <=9,] #much more normal
+```
+
+
+```{r}
 ## look at time_to_fill, keep inner 80%. 
 sort(table(data_engineer$time_to_fill),decreasing = T) 
 eng.time.tiles <- ntile(data_engineer$time_to_fill,10)
-data_engineer$time_to_fill[eng.time.tiles>=2 & eng.time.tiles <=9] %>% summary() # 4 -115
+data_engineer$time_to_fill[eng.time.tiles>=2 & eng.time.tiles <=9] %>% summary() 
+# 4 -115
+
+
+```
+
+```{r}
 data_engineer <- data_engineer[eng.time.tiles>=2 & eng.time.tiles <=9,] # 26148 rows
 sort(table(data_driver$time_to_fill),decreasing = T) 
 dri.time.tiles <- ntile(data_driver$time_to_fill,10)
 data_driver$time_to_fill[dri.time.tiles>=2 & dri.time.tiles <=9] %>% summary() # 3 -94
 data_driver <- data_driver[dri.time.tiles>=2 & dri.time.tiles <=9,] # 21130 row
 # distribution of median salary and time fill over time
+```
+
+```{r}
 tmp <- data_full %>% mutate('mydate' = format(as.Date(post_date),'%Y-%m')) %>% 
   select(mydate,role,salary) %>% filter(role %in% c('Engineer','Driver')) %>% 
   group_by(mydate,role) %>% summarise(med_salary = median(salary,na.rm = T))
@@ -739,15 +840,23 @@ for(ii in 1:nrow(tmp)){
 }
 tmp$mydate <- as.Date(tmp$mydate,'%Y-%m-%d')
 ggplot(data = tmp, aes(x = mydate, y = med_salary, color = role)) + geom_line()
+```
+
+
+```{r}
 tmp_2 <- tmp
 tmp_2$med_salary[tmp_2$role == 'Driver'] <-tmp_2$med_salary[tmp_2$role == 'Driver'] + 
   (median(data_engineer$salary,na.rm = T)-median(data_driver$salary,na.rm = T))
 ggplot(data = tmp_2, aes(x = mydate, y = med_salary, color = role)) + geom_line()
+```
+
+
 ## write the csvs 
 # write_csv(data_full,'/nfs/home/lcu1428/z/400_proj/data_full.csv')
 # write_csv(data_engineer,'/nfs/home/lcu1428/z/400_proj/data_engineer.csv')
 # write_csv(data_driver,'/nfs/home/lcu1428/z/400_proj/data_driver.csv')
-```
+
+
 
 
 
