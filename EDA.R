@@ -1,3 +1,5 @@
+
+
 # library
 library(readr)
 library(tidyverse)
@@ -41,6 +43,7 @@ for(ii in 1:nrow(tmp)){
 tmp$mydate <- as.Date(tmp$mydate,'%Y-%m-%d')
 
 ggplot(data = tmp, aes(x = mydate, y = num)) + geom_line() # It appears that after 2017-07 the number of jobs exploded
+
 
 # time to fill and salary distribution
 summary(data_full$time_to_fill) 

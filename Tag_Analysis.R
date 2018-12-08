@@ -53,7 +53,8 @@ get_weight <- function(tags,idf){return (idf[names(idf) %in% tags])}
 for(ii in 1:nrow(data_engineer)){
   tags <- strsplit(data_engineer$tags[ii],',')[[1]]
   weight.tags <- get_weight(tags,idf_eng)
-  money_tag <- data_engineer$salary[ii]*weight.tags # amount of money avg for tags
+  regularized_w <- weight.tags/sum(weight.tags)
+  money_tag <- data_engineer$salary[ii]*regularized_w # amount of money avg for tags
   tag_index <- which(names(top_eng_skills) %in% tags)
   skill_money_eng[tag_index] <- skill_money_eng[tag_index] + money_tag
 }
@@ -61,8 +62,8 @@ for(ii in 1:nrow(data_engineer)){
 names(skill_money_eng)<-names(top_eng_skills)
 sort(skill_money_eng,decreasing = T)[1:10] # top 10 most earning skills in total
 
-perc_money <- skill_money_eng/top_eng_skills
-sort(perc_money,decreasing = T)[1:20] #top 10 most earning skills per occur
+perc_money_eng <- skill_money_eng/top_eng_skills
+sort(perc_money_eng,decreasing = T)[1:20] #top 10 most earning skills per occur
 top_eng_skills[1:20]
 
 
@@ -72,7 +73,8 @@ skill_fill_eng <- rep(0,length(top_eng_skills))
 for(ii in 1:nrow(data_engineer)){
   tags <- strsplit(data_engineer$tags[ii],',')[[1]]
   weight.tags <- get_weight(tags,idf_eng)
-  fill_tag <- data_engineer$time_to_fill[ii]*weight.tags # amount of money avg for tags
+  regularized_w <- weight.tags/sum(weight.tags)
+  fill_tag <- data_engineer$time_to_fill[ii]*regularized_w # amount of money avg for tags
   tag_index <- which(names(top_eng_skills) %in% tags)
   skill_fill_eng[tag_index] <- skill_fill_eng[tag_index] + fill_tag
 }
@@ -80,11 +82,12 @@ for(ii in 1:nrow(data_engineer)){
 names(skill_fill_eng)<-names(top_eng_skills)
 sort(skill_fill_eng,decreasing = T)[1:10] # top 10 most earning skills in total
 
-perc_fill <- skill_fill_eng/top_eng_skills
-sort(perc_fill,decreasing = T)[1:20] #top 10 most earning skills per occur
+perc_fill_eng <- skill_fill_eng/top_eng_skills
+sort(perc_fill_eng,decreasing = T)[1:20] #top 10 most earning skills per occur
 
 # correlation between tags earn the most and tags earn most per occurence
-cor(skill_money_eng,skill_fill_eng)# 0.99
+cor(perc_money_eng,perc_fill_eng[names(perc_fill_eng) %in% names(perc_money_eng)])# 0.93
+cor(top_eng_skills,perc_fill_eng)
 
 # what about if we broke down by state
 
@@ -111,7 +114,8 @@ for(jj in 1:length(unique_states)){
   for(ii in 1:nrow(this_df)){
     tags <- strsplit(this_df$tags[ii],',')[[1]]
     weight.tags <- get_weight(tags,idf_state)
-    money_tag <- this_df$salary[ii]*weight.tags # amount of money avg for tags
+    regularized_w <- weight.tags/sum(weight.tags)
+    money_tag <- this_df$salary[ii]*regularized_w # amount of money avg for tags
     tag_index <- which(names(top_eng_skills_state) %in% tags)
     skill_money_state[tag_index] <- skill_money_state[tag_index] + money_tag
   }
@@ -145,7 +149,8 @@ for(jj in 1:length(unique_states)){
   for(ii in 1:nrow(this_df)){
     tags <- strsplit(this_df$tags[ii],',')[[1]]
     weight.tags <- get_weight(tags,idf_state)
-    money_tag <- this_df$time_to_fill[ii]*weight.tags # amount of money avg for tags
+    regularized_w <- weight.tags/sum(weight.tags)
+    money_tag <- this_df$time_to_fill[ii]*regularized_w # amount of money avg for tags
     tag_index <- which(names(top_eng_skills_state) %in% tags)
     skill_fill_eng_state[tag_index] <- skill_fill_eng_state[tag_index] + money_tag
   }
@@ -184,7 +189,8 @@ skill_money_dri <- rep(0,length(top_dri_skills))
 for(ii in 1:nrow(data_driver)){
   tags <- strsplit(data_driver$tags[ii],',')[[1]]
   weight.tags <- get_weight(tags,idf_dri)
-  money_tag <- data_driver$salary[ii]*weight.tags # amount of money avg for tags
+  regularized_w <- weight.tags/sum(weight.tags)
+  money_tag <- data_driver$salary[ii]*regularized_w # amount of money avg for tags
   tag_index <- which(names(top_dri_skills) %in% tags)
   skill_money_dri[tag_index] <- skill_money_dri[tag_index] + money_tag
 }
@@ -192,8 +198,8 @@ for(ii in 1:nrow(data_driver)){
 names(skill_money_dri)<-names(top_dri_skills)
 sort(skill_money_dri,decreasing = T)[1:10] # top 10 most earning skills in total
 
-perc_money <- skill_money_dri/top_dri_skills
-sort(perc_money,decreasing = T)[1:20] #top 10 most earning skills per occur
+perc_money_dri <- skill_money_dri/top_dri_skills
+sort(perc_money_dri,decreasing = T)[1:20] #top 10 most earning skills per occur
 top_dri_skills[1:20]
 
 
@@ -203,7 +209,8 @@ skill_fill_dri <- rep(0,length(top_dri_skills))
 for(ii in 1:nrow(data_driver)){
   tags <- strsplit(data_driver$tags[ii],',')[[1]]
   weight.tags <- get_weight(tags,idf_dri)
-  fill_tag <- data_driver$time_to_fill[ii]*weight.tags # amount of money avg for tags
+  regularized_w <- weight.tags/sum(weight.tags)
+  fill_tag <- data_driver$time_to_fill[ii]*regularized_w # amount of money avg for tags
   tag_index <- which(names(top_dri_skills) %in% tags)
   skill_fill_dri[tag_index] <- skill_fill_dri[tag_index] + fill_tag
 }
@@ -211,11 +218,13 @@ for(ii in 1:nrow(data_driver)){
 names(skill_fill_dri)<-names(top_dri_skills)
 sort(skill_fill_dri,decreasing = T)[1:10] # top 10 most earning skills in total
 
-perc_fill <- skill_fill_dri/top_dri_skills
-sort(perc_fill,decreasing = T)[1:20] #top 10 most earning skills per occur
+perc_fill_dri <- skill_fill_dri/top_dri_skills
+sort(perc_fill_dri,decreasing = T)[1:20] #top 10 most earning skills per occur
 
 # correlation between tags earn the most and tags earn most per occurence
-cor(skill_money_dri,skill_fill_dri)# 0.99
+cor(perc_fill_dri,perc_money_dri)# 0.94
+cor(top_dri_skills,perc_fill_dri)#-0.44
+cor(top_dri_skills,perc_money_dri)#-0.52
 
 # what about if we broke down by state
 
@@ -240,7 +249,8 @@ for(jj in 1:length(unique_states)){
   for(ii in 1:nrow(this_df)){
     tags <- strsplit(this_df$tags[ii],',')[[1]]
     weight.tags <- get_weight(tags,idf_state)
-    money_tag <- this_df$salary[ii]*weight.tags # amount of money avg for tags
+    regularized_w <- weight.tags/sum(weight.tags)
+    money_tag <- this_df$salary[ii]*regularized_w # amount of money avg for tags
     tag_index <- which(names(top_dri_skills_state) %in% tags)
     skill_money_state[tag_index] <- skill_money_state[tag_index] + money_tag
   }
@@ -274,7 +284,8 @@ for(jj in 1:length(unique_states)){
   for(ii in 1:nrow(this_df)){
     tags <- strsplit(this_df$tags[ii],',')[[1]]
     weight.tags <- get_weight(tags,idf_state)
-    money_tag <- this_df$time_to_fill[ii]*weight.tags # amount of money avg for tags
+    regularized_w <- weight.tags/sum(weight.tags)
+    money_tag <- this_df$time_to_fill[ii]*regularized_w # amount of money avg for tags
     tag_index <- which(names(top_dri_skills_state) %in% tags)
     skill_fill_dri_state[tag_index] <- skill_fill_dri_state[tag_index] + money_tag
   }
