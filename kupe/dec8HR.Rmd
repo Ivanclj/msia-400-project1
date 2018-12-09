@@ -453,7 +453,7 @@ summary(all_drivers.filterd$time_to_fill)
 ```{r}
 ## get the 80% tiles of salary
 dri.tiles <- ntile(all_drivers.filterd$time_to_fill,10)
-all_drivers.filterd <- all_drivers.filterd[dri.tiles>=2 & dri.tiles <=8,]
+#all_drivers.filterd <- all_drivers.filterd[dri.tiles>=2 & dri.tiles <=8,]
 table(all_drivers.filterd$role) %>% sort(decreasing = T)
 ```
 
@@ -581,22 +581,24 @@ data_driver <- data_driver[dri.tiles>=2 & dri.tiles <=9,] #much more normal
 
 
 ```{r}
-## look at time_to_fill, keep inner 80%. 
+## look at time_to_fill, (not any longer, already removed earlier under 3 days and over 123 days) ***keep inner 80%. 
 sort(table(data_engineer$time_to_fill),decreasing = T) 
-eng.time.tiles <- ntile(data_engineer$time_to_fill,10)
-data_engineer$time_to_fill[eng.time.tiles>=2 & eng.time.tiles <=9] %>% summary() 
+#eng.time.tiles <- ntile(data_engineer$time_to_fill,10)
+##data_engineer$time_to_fill[eng.time.tiles>=2 & eng.time.tiles <=9] %>% summary() 
+data_engineer$time_to_fill%>% summary()
 # 4 -115
 
 
 ```
 
 ```{r}
-data_engineer <- data_engineer[eng.time.tiles>=2 & eng.time.tiles <=9,] # 26148 rows
+#data_engineer <- data_engineer[eng.time.tiles>=2 & eng.time.tiles <=9,] # 26148 rows
 sort(table(data_driver$time_to_fill),decreasing = T) 
-dri.time.tiles <- ntile(data_driver$time_to_fill,10)
-data_driver$time_to_fill[dri.time.tiles>=2 & dri.time.tiles <=9] %>% summary() # 3 -94
-data_driver <- data_driver[dri.time.tiles>=2 & dri.time.tiles <=9,] # 21130 row
+#dri.time.tiles <- ntile(data_driver$time_to_fill,10)
+#data_driver$time_to_fill[dri.time.tiles>=2 & dri.time.tiles <=9] %>% summary() # 3 -94
+#data_driver <- data_driver[dri.time.tiles>=2 & dri.time.tiles <=9,] # 21130 row
 # distribution of median salary and time fill over time
+data_driver$time_to_fill %>% summary()
 ```
 
 # ```{r}
@@ -626,12 +628,12 @@ data_driver <- data_driver[dri.time.tiles>=2 & dri.time.tiles <=9,] # 21130 row
 
 
 
-
+```{r}
 ## write the csvs 
-# write_csv(data_full,'/nfs/home/lcu1428/z/400_proj/data_full.csv')
-# write_csv(data_engineer,'/nfs/home/lcu1428/z/400_proj/data_engineer.csv')
-# write_csv(data_driver,'/nfs/home/lcu1428/z/400_proj/data_driver.csv')
-
+write_csv(data_full,'/nfs/home/jjk5642/z/msia-400-project1/kupe/data_full.csv')
+write_csv(data_engineer,'/nfs/home/jjk5642/z/msia-400-project1/kupe/data_engineer.csv')
+write_csv(data_driver,'/nfs/home/jjk5642/z/msia-400-project1/kupe/data_driver.csv')
+```
 
 # time series analysis
 # calculate and plot ratio of job count
