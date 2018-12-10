@@ -18,10 +18,11 @@ library(readr)
 library(tidyverse)
 library(ggplot2)
 # read in data
-data_full <- read.csv('data_full.csv', stringsAsFactors = FALSE)
-data_engineer <- read.csv('data_engineer.csv', stringsAsFactors = FALSE)
-data_driver <- read.csv('data_driver.csv', stringsAsFactors = FALSE)
+data_full <- read_csv('data_full.csv')
+data_engineer <- read_csv('data_engineer.csv')
+data_driver <- read_csv('data_driver.csv')
 ```
+
 
 ```{r}
 # most popular 10 jobs
@@ -39,8 +40,7 @@ top_skills[0:50]
 
 ```{r}
 # top skills group by top 10 jobs 
-data_full %>% 
-  select(role,tags) %>% 
+data_full  %>% 
   filter(role %in% names(top_jobs[0:10])) %>% 
   separate_rows(.,tags,sep = ',') %>% 
   filter(!is.na(tags) & tags != '') %>% 
@@ -101,6 +101,10 @@ sort(skill_money_eng,decreasing = T)[1:10]
 
 ```{r}
 perc_money <- skill_money_eng/top_eng_skills
+perc_money_eng_df <- data.frame(name = names(perc_money),val = as.numeric(perc_money))
+top_money_eng_df <- data.frame(name = names(top_eng_skills), val = as.numeric(top_eng_skills))
+write_csv(top_money_eng_df,"top_money_eng_df.csv")
+write_csv(perc_money_eng_df,"perc_money_eng_df.csv")
 sort(perc_money,decreasing = T)[1:20] 
 #top 10 most earning skills per occur
 ```
@@ -143,7 +147,7 @@ cor(skill_money_eng,skill_fill_eng)
 # what about if we broke down by state
 # what skills earn most money? what about pay per occurence
 unique_states <- unique(data_engineer$state)
-unique_states <- unique_states[unique_states!=-1]
+unique_states <- unique_states[!is.na(unique_states)]
 zeros <- rep(0,length(unique_states))
 skill_money_eng_df <- data.frame(state = unique_states,tag1 = zeros,
                              tag2 = zeros,tag3 = zeros,
@@ -154,6 +158,7 @@ skill_money_eng_df <- data.frame(state = unique_states,tag1 = zeros,
                              sal2 = zeros,sal3 = zeros,
                              sal4 = zeros,sal5 = zeros)
 ```
+
 
 ```{r}
 # get skill distribution from each state
@@ -271,6 +276,10 @@ sort(skill_money_dri,decreasing = T)[1:10]
 
 ```{r}
 perc_money <- skill_money_dri/top_dri_skills
+perc_money_dri_df <- data.frame(name = names(perc_money),val = as.numeric(perc_money))
+top_money_dri_df <- data.frame(name = names(top_dri_skills), val = as.numeric(top_dri_skills))
+write_csv(top_money_dri_df,"top_money_dri_df.csv")
+write_csv(perc_money_dri_df,"perc_money_dri_df.csv")
 sort(perc_money,decreasing = T)[1:20] 
 # top 10 most earning skills per occur
 ```

@@ -16,7 +16,6 @@ library(tidyverse)
 library(readr)
 library(ggpubr)
 library(reshape2)
-library(stylo)
 library(lubridate)
 library(MASS)
 
@@ -110,7 +109,7 @@ ggplot(data = cbm, aes(x = factor(Month_Yr), y = count, color = role)) +
 
 
 ```{r}
-data_full <- read.csv('Manu_data_200000.csv')
+data_full <- read_csv('Manu_data_200000.csv')
 data_full<-data_full[,-c(1,17,19)]
 # 200,000 observations
 ```
@@ -624,12 +623,17 @@ data_driver$time_to_fill %>% summary()
 
 
 
-
+```{r}
+#data_full$tags <- as.character(data_full$tags)
+#data_engineer$tags <- as.character(data_engineer$tags)
+#data_driver$tags <- as.character(data_driver$tags)
+```
 
 
 
 ```{r}
 ## write the csvs 
+str(data_engineer)
 write_csv(data_full,'/nfs/home/jjk5642/z/msia-400-project1/kupe/data_full.csv')
 write_csv(data_engineer,'/nfs/home/jjk5642/z/msia-400-project1/kupe/data_engineer.csv')
 write_csv(data_driver,'/nfs/home/jjk5642/z/msia-400-project1/kupe/data_driver.csv')
