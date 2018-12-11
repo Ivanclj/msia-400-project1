@@ -1,6 +1,6 @@
 ---
 title: "IvanModel"
-author: "Joe Kupresanin"
+author: "Ivan Palantir"
 date: "12/9/2018"
 output: pdf_document
 ---
@@ -44,7 +44,9 @@ data_engineer$filled[data_engineer$time_to_fill <= 35] <- '< 1 month'
 data_engineer$filled[data_engineer$time_to_fill > 35] <- '> 1 month'
 
 table(data_engineer$filled)
+```
 
+```{r}
 data_driver$filled <-0
 data_driver$filled[data_driver$time_to_fill <= 35] <- '< 1 month'
 #data_driver$filled[data_driver$time_to_fill > 35 & data_driver$time_to_fill <= 65] <- '< 2 month'
@@ -52,10 +54,15 @@ data_driver$filled[data_driver$time_to_fill <= 35] <- '< 1 month'
 data_driver$filled[data_driver$time_to_fill > 35] <- '> 1 month'
 
 table(data_driver$filled)
+```
+
+```{r}
 
 # merge two dfs
 data.predict <- rbind(data_engineer,data_driver)
+```
 
+```{r}
 # # Check if tags are good for predict time to fill 
 # temp <- data_engineer
 # a <- rep(0,nrow(temp))
@@ -156,24 +163,33 @@ library(lubridate)
 data.predict$month <- month(data.predict$post_date) 
 # adjust for over exploded jobs
 data.predict <-data.predict[data.predict$post_date > as.Date('2017-07-31'),]
+```
+
+```{r}
 
 # make factors
 data.predict$filled <- as.factor(data.predict$filled)
 data.predict$month <- as.factor(data.predict$month)
 data.predict$state[is.na(data.predict$state)] <- '-1'
 data.predict$state <- as.factor(data.predict$state)
+```
 
+```{r}
 
 # make prediction table
 data.predict <- data.predict[,c('filled','state','month','salary','role')]
+```
 
+```{r}
 # train test split
 set.seed(123)
 test.idx<-sample(1:nrow(data.predict),size = 0.2*nrow(data.predict))
 data.test<-data.predict[test.idx,]
 data.train<-data.predict[-test.idx,]
+```
 
 
+```{r}
 #Randomforest
 library(randomForest)
 library(pROC)
@@ -184,30 +200,59 @@ Rank.Variable.Importance<-raw.rf
 plot(raw.rf)
 importance(raw.rf)->zz
 varImpPlot(Rank.Variable.Importance,cex=0.9)
+```
 
+```{r}
 #predict
 
 pred<-predict(raw.rf,data.test,type = 'class')
 t<-table(pred=pred,actual=data.test$filled)
 t
+```
+
+```{r}
 # ccr
 
 sum(diag(t))/sum(t) 
-# f score
-recall <- t[2,2]/(t[2,2]+t[2,1])
-precision <- t[2,2]/(t[2,2]+t[1,2])
-2*recall*precision/(recall+precision)#0.30
+```
 
+```{r}
+recall <- t[2,2]/(t[2,2]+t[2,1])
+recall
+```
+
+```{r}
+precision <- t[2,2]/(t[2,2]+t[1,2])
+precision
+```
+
+```{r}
+# F1 Score
+2*recall*precision/(recall+precision)#0.30
+```
+
+```{r}
 pred.p<-predict(raw.rf,data.test,type = 'prob')
 pred.p %>% head
+```
+
+```{r}
 auc<-auc(data.test$filled,pred.p[,2])
 auc
-plot(roc(data.test$filled,pred.p[,2]))
+```
 
+```{r}
+plot(roc(data.test$filled,pred.p[,2]))
+```
+
+```{r}
 #find best mtry
-best.mtry<-tuneRF(data.train,data.train$filled,ntreeTry = 100,stepFactor = 1,improve = 0.05,trace = T,
-                  plot = T)
-#Cross validation 
+# best.mtry<-tuneRF(data.train,data.train$filled,ntreeTry = 100,stepFactor = 1,improve = 0.05,trace = T,
+#                   plot = T)
+#Cross validation
+```
+
+```{r}
 k_fold_x_valid<-function(d,k){
   set.seed(123)
   size<-nrow(d)/k
@@ -240,10 +285,16 @@ k_fold_x_valid<-function(d,k){
 
 #rst<-k_fold_x_valid(data.predict,10)
 #rst
+```
+
+```{r}
 ## SVM
 library(e1071)
 data.svm <- svm(relevel(filled,ref = '< 1 month') ~ ., data = data.train)
 summary(data.svm)
+```
+
+```{r}
 
 #plot(data.svm,data.train)
 
@@ -251,11 +302,19 @@ svm.pred <- predict(data.svm,data.test,type='response')
 
 conf_matx <- table(pred = svm.pred,actual = data.test$filled)
 conf_matx
+```
+
+```{r}
 sum(diag(conf_matx))/sum(conf_matx) #0.64
 recall <- conf_matx[2,2]/(conf_matx[2,2]+conf_matx[2,1])
+```
+
+```{r}
 precision <- conf_matx[2,2]/(conf_matx[2,2]+conf_matx[1,2])
+precision
+```
+
+```{r}
+# F1 Score
 2*recall*precision/(recall+precision)#0.24
-
-
-
 ```

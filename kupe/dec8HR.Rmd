@@ -108,7 +108,7 @@ ggplot(data = cbm, aes(x = factor(Month_Yr), y = count, color = role)) +
 # Removed jobs with time_to_fill 0,1,2 or more than 123 days
 
 
-```{r}
+```{r, include=FALSE}
 data_full <- read_csv('Manu_data_200000.csv')
 data_full<-data_full[,-c(1,17,19)]
 # 200,000 observations
@@ -149,12 +149,15 @@ summary(data_full$salary)
 ```
 
 ```{r}
-# Remove rows with time_to_fill = NA (4477 / 200000 ~ 2.24%)
+# Remove rows with time_to_fill = NA (4477 / 200000 ~ 2.52%)
 data_full <- data_full %>% drop_na(time_to_fill)
 # 172,754 observations
 ```
 
-
+```{r}
+# time to fill distribution
+summary(data_full$time_to_fill)
+```
 
 # # #treat NA, tof and salary are minor numbers, removed. Mainly impute for State
 # data_full <- data_full[!is.na(data_full$salary) & !is.na(data_full$time_to_fill),] 
@@ -269,9 +272,18 @@ table(all_engineers.filterd$role) %>% sort(decreasing = T)
 ```
 
 ```{r}
-ggboxplot(all_engineers.filterd, x = "role", y = "salary", fill = 'role',
-          palette = 'magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7))
+require(scales)
 ```
+
+```{r}
+all_engineers.filterd1 <- all_engineers.filterd[!is.na(all_engineers.filterd$role), 
+                                                ]
+ggboxplot(all_engineers.filterd1, x = "role", y = "salary", fill = 'role',
+          palette = 'magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7))+
+  scale_y_continuous(labels = comma)
+```
+
+
 ```{r}
 # trend of the ten groups salary
 ggline(all_engineers.filterd, x = "role", y = "salary", color = "role",
@@ -392,7 +404,8 @@ sum_drivers1 <- all_drivers1 %>% group_by(role) %>% summarise(
 # boxplots of ten groups salary
 
 ggboxplot(all_drivers, x = "role", y = "salary", fill = 'role',
-          palette = 'magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7))
+          palette = 'magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7)) +
+  scale_y_continuous(labels = comma)
 ```
 
 ```{r}
@@ -419,8 +432,11 @@ table(all_drivers.filterd$role) %>% sort(decreasing = T)
 ```
 
 ```{r}
-ggboxplot(all_drivers.filterd, x = "role", y = "salary", fill = 'role',
-          palette = 'magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7))
+all_drivers.filterd1 <- all_drivers.filterd[!is.na(all_drivers.filterd$role), 
+                                                ]
+ggboxplot(all_drivers.filterd1, x = "role", y = "salary", fill = 'role',
+          palette = 'magma')+theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 7)) +
+  scale_y_continuous(labels = comma)
 ```
 
 ```{r}
