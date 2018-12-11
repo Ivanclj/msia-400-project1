@@ -163,6 +163,19 @@ library(lubridate)
 data.predict$month <- month(data.predict$post_date) 
 # adjust for over exploded jobs
 data.predict <-data.predict[data.predict$post_date > as.Date('2017-07-31'),]
+
+data_engineer$month <- month(data_engineer$post_date) 
+# adjust for over exploded jobs
+data_engineer <-data_engineer[data_engineer$post_date > as.Date('2017-07-31'),]
+
+data_driver$month <- month(data_driver$post_date) 
+# adjust for over exploded jobs
+data_driver <-data_driver[data_driver$post_date > as.Date('2017-07-31'),]
+
+
+
+
+
 ```
 
 ```{r}
@@ -172,12 +185,34 @@ data.predict$filled <- as.factor(data.predict$filled)
 data.predict$month <- as.factor(data.predict$month)
 data.predict$state[is.na(data.predict$state)] <- '-1'
 data.predict$state <- as.factor(data.predict$state)
+
+
+
+data_engineer$filled <- as.factor(data_engineer$filled)
+data_engineer$month <- as.factor(data_engineer$month)
+data_engineer$state[is.na(data_engineer$state)] <- '-1'
+data_engineer$state <- as.factor(data_engineer$state)
+
+
+data_driver$filled <- as.factor(data_driver$filled)
+data_driver$month <- as.factor(data_driver$month)
+data_driver$state[is.na(data_driver$state)] <- '-1'
+data_driver$state <- as.factor(data_driver$state)
+
+
+
+
 ```
 
 ```{r}
 
 # make prediction table
 data.predict <- data.predict[,c('filled','state','month','salary','role')]
+
+data_engineer <- data_engineer[,c('filled','state','month','salary','role')]
+
+data_driver <- data_driver[,c('filled','state','month','salary','role')]
+
 ```
 
 ```{r}
@@ -186,6 +221,18 @@ set.seed(123)
 test.idx<-sample(1:nrow(data.predict),size = 0.2*nrow(data.predict))
 data.test<-data.predict[test.idx,]
 data.train<-data.predict[-test.idx,]
+
+
+set.seed(234)
+test.idx.e<-sample(1:nrow(data_engineer),size = 0.2*nrow(data_engineer))
+data.test.e<-data_engineer[test.idx.e,]
+data.train.e<-data_engineer[-test.idx.e,]
+
+
+set.seed(345)
+test.idx.d<-sample(1:nrow(data_driver),size = 0.2*nrow(data_driver))
+data.test.d<-data_driver[test.idx.d,]
+data.train.d<-data_driver[-test.idx.d,]
 ```
 
 
@@ -194,127 +241,262 @@ data.train<-data.predict[-test.idx,]
 library(randomForest)
 library(pROC)
 
-#model
-raw.rf<-randomForest(filled~state+month+salary,data=data.train,importance=T,ntree=400)
-Rank.Variable.Importance<-raw.rf
-plot(raw.rf)
-importance(raw.rf)->zz
+#model (Drivers + Engineers)
+#raw.rf<-randomForest(filled~state+month+salary,data=data.train,importance=T,ntree=400)
+#Rank.Variable.Importance<-raw.rf
+#plot(raw.rf)
+#importance(raw.rf)->zz
+#varImpPlot(Rank.Variable.Importance,cex=0.9)
+
+
+# Engineers
+raw.rf.e <-randomForest(filled~state+month+salary,data=data.train.e,importance=T,ntree=400)
+Rank.Variable.Importance<-raw.rf.e
+plot(raw.rf.e)
+importance(raw.rf.e)->zz
 varImpPlot(Rank.Variable.Importance,cex=0.9)
+
+
 ```
 
 ```{r}
-#predict
+# predict Engineers
 
-pred<-predict(raw.rf,data.test,type = 'class')
-t<-table(pred=pred,actual=data.test$filled)
+pred.e <-predict(raw.rf.e,data.test.e,type = 'class')
+t<-table(pred=pred.e,actual=data.test.e$filled)
 t
 ```
 
 ```{r}
-# ccr
+# ccr engineers
 
 sum(diag(t))/sum(t) 
 ```
 
 ```{r}
-recall <- t[2,2]/(t[2,2]+t[2,1])
+# recall engineers
+recall <- t[2,2]/(t[2,2]+t[1,2])
 recall
 ```
 
 ```{r}
-precision <- t[2,2]/(t[2,2]+t[1,2])
+# precision engineers
+precision <- t[2,2]/(t[2,2]+t[2,1])
 precision
 ```
 
 ```{r}
-# F1 Score
+# F1 Score engineers
 2*recall*precision/(recall+precision)#0.30
 ```
 
 ```{r}
-pred.p<-predict(raw.rf,data.test,type = 'prob')
+# engineers
+pred.p<-predict(raw.rf.e,data.test.e,type = 'prob')
 pred.p %>% head
 ```
 
 ```{r}
-auc<-auc(data.test$filled,pred.p[,2])
+# engineers
+auc<-auc(data.test.e$filled,pred.p[,2])
 auc
 ```
 
 ```{r}
-plot(roc(data.test$filled,pred.p[,2]))
+# engineers
+plot(roc(data.test.e$filled,pred.p[,2]))
 ```
 
-```{r}
+
 #find best mtry
 # best.mtry<-tuneRF(data.train,data.train$filled,ntreeTry = 100,stepFactor = 1,improve = 0.05,trace = T,
 #                   plot = T)
 #Cross validation
+
+
+# ```{r}
+# k_fold_x_valid<-function(d,k){
+#   set.seed(123)
+#   size<-nrow(d)/k
+#   loss.vec<-1:k
+#   loss.plot<-1:k
+#   model.vec<-1:k
+#   for(ii in 1:k){
+#     #train-test split
+#     test.idx<-((ii-1)*size+1):(ii*size)
+#     print(length(test.idx))
+#     test<-d[test.idx,]
+#     train<-d[-test.idx,]
+#     print(nrow(train))
+#     
+#     #model
+#     raw.rf<-randomForest(relevel(filled,ref = '< 1 month')~.,data=train,importance=T,ntree=400)
+#     model.vec[ii]<-raw.rf
+#     loss.plot[ii]<-plot(raw.rf)
+#     raw.pred<-predict(raw.rf,test)
+#     print(table(raw.pred,test$filled))
+#     err.rf<-sum((as.numeric(test$filled)-as.numeric(raw.pred))^2)/nrow(test)
+#     loss.vec[ii]<-err.rf
+#     print(paste('error:',err.rf))
+#   }
+#   print('ada')
+#   rst<-list(model.vec,loss.plot,loss.vec)
+#   return(rst)
+#   
+# }
+# 
+# #rst<-k_fold_x_valid(data.predict,10)
+# #rst
+# ```
+
+```{r}
+# Drivers
+raw.rf.d <-randomForest(filled~state+month+salary,data=data.train.d,importance=T,ntree=400)
+Rank.Variable.Importance<-raw.rf.d
+plot(raw.rf.d)
+importance(raw.rf.d)->zz
+varImpPlot(Rank.Variable.Importance,cex=0.9)
+
+
 ```
 
 ```{r}
-k_fold_x_valid<-function(d,k){
-  set.seed(123)
-  size<-nrow(d)/k
-  loss.vec<-1:k
-  loss.plot<-1:k
-  model.vec<-1:k
-  for(ii in 1:k){
-    #train-test split
-    test.idx<-((ii-1)*size+1):(ii*size)
-    print(length(test.idx))
-    test<-d[test.idx,]
-    train<-d[-test.idx,]
-    print(nrow(train))
-    
-    #model
-    raw.rf<-randomForest(relevel(filled,ref = '< 1 month')~.,data=train,importance=T,ntree=400)
-    model.vec[ii]<-raw.rf
-    loss.plot[ii]<-plot(raw.rf)
-    raw.pred<-predict(raw.rf,test)
-    print(table(raw.pred,test$filled))
-    err.rf<-sum((as.numeric(test$filled)-as.numeric(raw.pred))^2)/nrow(test)
-    loss.vec[ii]<-err.rf
-    print(paste('error:',err.rf))
-  }
-  print('ada')
-  rst<-list(model.vec,loss.plot,loss.vec)
-  return(rst)
-  
-}
 
-#rst<-k_fold_x_valid(data.predict,10)
-#rst
+# predict Drivers
+
+pred.d <-predict(raw.rf.d,data.test.d,type = 'class')
+t<-table(pred=pred.d,actual=data.test.d$filled)
+t
 ```
 
 ```{r}
-## SVM
-library(e1071)
-data.svm <- svm(relevel(filled,ref = '< 1 month') ~ ., data = data.train)
-summary(data.svm)
+# ccr drivers
+
+sum(diag(t))/sum(t) 
 ```
 
 ```{r}
-
-#plot(data.svm,data.train)
-
-svm.pred <- predict(data.svm,data.test,type='response')
-
-conf_matx <- table(pred = svm.pred,actual = data.test$filled)
-conf_matx
+# recall drivers
+recall <- t[2,2]/(t[2,2]+t[1,2])
+recall
 ```
 
 ```{r}
-sum(diag(conf_matx))/sum(conf_matx) #0.64
-recall <- conf_matx[2,2]/(conf_matx[2,2]+conf_matx[2,1])
-```
-
-```{r}
-precision <- conf_matx[2,2]/(conf_matx[2,2]+conf_matx[1,2])
+# precision drivers
+precision <- t[2,2]/(t[2,2]+t[2,1])
 precision
 ```
 
 ```{r}
-# F1 Score
-2*recall*precision/(recall+precision)#0.24
+# F1 Score drivers
+2*recall*precision/(recall+precision)#0.30
 ```
+
+```{r}
+# drivers
+pred.p<-predict(raw.rf.d,data.test.d,type = 'prob')
+pred.p %>% head
+```
+
+```{r}
+# drivers
+auc<-auc(data.test.d$filled,pred.p[,2])
+auc
+```
+
+```{r}
+# drivers
+plot(roc(data.test.d$filled,pred.p[,2]))
+```
+
+
+```{r}
+## SVM
+library(e1071)
+```
+
+```{r}
+# engineers
+data.svm.e <- svm(relevel(filled,ref = '< 1 month') ~ state + month + salary, data = data.train.e)
+summary(data.svm.e)
+```
+
+```{r}
+
+#plot(data.svm,data.train) engineers
+
+svm.pred <- predict(data.svm.e,data.test.e,type='response')
+
+conf_matx <- table(pred = svm.pred,actual = data.test.e$filled)
+conf_matx
+```
+
+```{r}
+# ccr engineers
+sum(diag(conf_matx))/sum(conf_matx)
+```
+
+```{r}
+# recall engineers
+recall <- conf_matx[2,2]/(conf_matx[2,2]+conf_matx[1,2])
+recall
+```
+
+```{r}
+# precision engineers
+precision <- conf_matx[2,2]/(conf_matx[2,2]+conf_matx[2,1])
+precision
+```
+
+```{r}
+# F1 Score engineers
+2*recall*precision/(recall+precision)
+```
+
+
+```{r}
+# drivers
+data.svm.d <- svm(relevel(filled,ref = '< 1 month') ~ state + month + salary, data = data.train.d)
+summary(data.svm.d)
+```
+
+```{r}
+#plot(data.svm,data.train) drivers
+
+svm.pred <- predict(data.svm.d,data.test.d,type='response')
+
+conf_matx <- table(pred = svm.pred,actual = data.test.d$filled)
+conf_matx
+```
+
+```{r}
+# ccr drivers
+sum(diag(conf_matx))/sum(conf_matx) 
+```
+
+```{r}
+# recall drivers
+recall <- conf_matx[2,2]/(conf_matx[2,2]+conf_matx[1,2])
+recall
+```
+
+```{r}
+# precision drivers
+precision <- conf_matx[2,2]/(conf_matx[2,2]+conf_matx[2,1])
+precision
+```
+
+```{r}
+# F1 Score drivers
+2*recall*precision/(recall+precision)
+```
+
+
+
+
+
+
+
+
+
+

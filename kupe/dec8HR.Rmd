@@ -851,7 +851,7 @@ ggplot(data = cbm_state_top, aes(x = factor(Month_Yr), y = ratio, color = region
   xlab('Year-Month') +
   ylab('Ratio of Job Posting') +
   theme(legend.position='right', 
-        legend.text=element_text(size=5),
+        legend.text=element_text(size=7),
         axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
@@ -939,7 +939,8 @@ denver.driver <- filter(denver.driver, salary < 100000)
 ```{r}
 ggplot(data = denver.driver, mapping = aes(x=salary, y=time_to_fill)) +
   geom_point(mapping = aes(color = region)) +
-  geom_smooth(mapping = aes(x = salary, y=time_to_fill, color=region), se=FALSE)
+  geom_smooth(mapping = aes(x = salary, y=time_to_fill, color=region), se=FALSE) +
+  labs(title="Denver Driving Job Market (August 2017-July 2018")
 ```
 
 ```{r}
