@@ -114,17 +114,31 @@ denver.driver$quarter4 <- ifelse(month(denver.driver$post_date) %in% c(10, 11, 1
 ```
 
 ```{r}
+denver.driver$quarter <- denver.driver$quarter1 * 1 + denver.driver$quarter2*2 + denver.driver$quarter3*3 + denver.driver$quarter4*4
+denver.driver$quarter <- as.factor(denver.driver$quarter)
 denver.driver$salary.bucket <- ifelse(denver.driver$salary < 30000, "Low", ifelse(denver.driver$salary < 50000, "Medium", "High"))
 ```
 
 ```{r}
 library(MASS)
-denver.driver$salary <- (denver.driver$salary-mean(denver.driver$salary))/sqrt(var(denver.driver$salary))
+denver.driver$salary <-(denver.driver$salary-mean(denver.driver$salary))/sqrt(var(denver.driver$salary))
 sum(denver.driver$commercial * denver.driver$training * denver.driver$quarter1 * as.factor(denver.driver$salary.bucket))
-norm.salary = (denver.driver$salary - mean(denver.driver$salary)) / sd(denver.driver$salary)
-full.inter.model <- lm(time_to_fill ~ norm.salary * region * safety * diploma * transportation * cust.serv + training * commercial * warehouse * quarter1 * quarter2 * quarter3, data = denver.driver)
+norm.salary = (denver.driver$salary - mean(denver.driver$salary))/sd(denver.driver$salary)
+full.inter.model <- lm(time_to_fill ~ (norm.salary + region + safety + diploma + transportation + cust.serv + training + commercial + warehouse + quarter)^2, data = denver.driver)
 step.inter.model <- stepAIC(full.inter.model, direction="both", trace=FALSE)
 summary(step.inter.model)
+library(car)
+summary(p1 <- powerTransform(full.inter.model))
+summary(m1 <- lm(bcPower(time_to_fill, p1$roundlam) ~ (norm.salary + region + safety + diploma + transportation + cust.serv + training + commercial + warehouse + quarter)^2, denver.driver))
+m_best = stepAIC(m1, direction="both", trace=FALSE)
+par(mfrow = c(2,2))
+plot(m_best)
+summary(m_best)
+denver.driver2 <- denver.driver[-80,]
+norm.salary = (denver.driver2$salary - mean(denver.driver2$salary))/sd(denver.driver2$salary)
+summary(m1 <- lm(bcPower(time_to_fill, p1$roundlam) ~ (norm.salary + region + safety + diploma + transportation + cust.serv + training + commercial + warehouse + quarter)^2, denver.driver2))
+m_best <- stepAIC(m1, direction="both", trace=FALSE)
+summary(m_best)
 ```
 
 ```{r}
