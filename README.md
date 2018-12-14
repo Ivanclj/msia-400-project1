@@ -11,4 +11,7 @@ joe's branch (in the folder of kupe):
 - IvanModel.Rmd: R code for classifying "time to fill" using Random Forest and SVM
 
 ziying's branch:
-- TTF_zy.Rmd: R code for linear regression of predictin "time to fill" in Denver Driver Market
+- TTF_zy.Rmd: R code for linear regression of predicting "time to fill" in Denver Driver Market
+
+Anjali's branch:
+- LogisticReg.Rmd: R code for logistic regression on "time to fill"
