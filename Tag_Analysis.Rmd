@@ -1,0 +1,324 @@
+---
+title: "Tag_Analysis"
+author: "Ivan"
+date: "12/7/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## This Rmd is mainly for analysis for tags
+
+```{r, include=FALSE}
+
+# library
+library(readr)
+library(tidyverse)
+library(ggplot2)
+```
+
+```{r}
+
+
+# library
+library(readr)
+library(tidyverse)
+library(ggplot2)
+
+# read in data
+data_full <- read.csv('/nfs/home/lcu1428/z/400_proj/data_full.csv')
+data_engineer <- read.csv('/nfs/home/lcu1428/z/400_proj/data_engineer.csv')
+data_driver <- read.csv('/nfs/home/lcu1428/z/400_proj/data_driver.csv')
+
+# most popular 10 jobs
+top_jobs <- sort(table(data_full$role),decreasing = T)
+top_jobs[0:10]
+# most wanted 50 skills 
+top_skills <- sort(table(unlist(strsplit(data_full$tags,','))),decreasing = T)
+top_skills[0:50]
+# top skills group by top 10 jobs 
+data_full %>% select(role,tags) %>% filter(role %in% names(top_jobs[0:10])) %>% 
+  separate_rows(.,tags,sep = ',') %>% filter(!is.na(tags) & tags != '') %>% 
+  group_by(role,tags) %>% summarise(num = n()) %>% top_n(.,10,num) %>% 
+  arrange(role,desc(num))-> tmp
+
+# top skills repeated in top jobs
+sort(table(tmp$tags),decreasing = T)
+
+## DRIVERS AND ENGINEERS
+
+# ENGINEERS
+# most wanted 50 skills 
+top_eng_skills <- sort(table(unlist(strsplit(data_engineer$tags,','))),decreasing = T)
+length(top_eng_skills)# 599
+top_eng_skills[1:30]
+
+# avg num of skills required
+count_tag <- function(x){length(strsplit(x,',')[[1]])}
+num_tags <- as.numeric(sapply(data_engineer$tags, count_tag))
+summary(num_tags) # an engineer job posting would have on average 10 tags
+
+# what skills earn most money? what about pay per occurence
+top_eng_skills <- top_eng_skills[as.numeric(top_eng_skills) > nrow(data_engineer)*0.01] # skill appeared more than 1%
+length(top_eng_skills) #169
+
+# get the IDF values for each top tag
+idf_eng <- log(nrow(data_engineer)/top_eng_skills)
+
+# look at what earns money
+skill_money_eng <- rep(0,length(top_eng_skills))
+
+get_weight <- function(tags,idf){return (idf[names(idf) %in% tags])}
+
+
+for(ii in 1:nrow(data_engineer)){
+  tags <- strsplit(data_engineer$tags[ii],',')[[1]]
+  weight.tags <- get_weight(tags,idf_eng)
+  regularized_w <- weight.tags/sum(weight.tags)
+  money_tag <- data_engineer$salary[ii]*regularized_w # amount of money avg for tags
+  tag_index <- which(names(top_eng_skills) %in% tags)
+  skill_money_eng[tag_index] <- skill_money_eng[tag_index] + money_tag
+}
+
+names(skill_money_eng)<-names(top_eng_skills)
+sort(skill_money_eng,decreasing = T)[1:10] # top 10 most earning skills in total
+
+perc_money <- skill_money_eng/top_eng_skills
+sort(perc_money,decreasing = T)[1:20] #top 10 most earning skills per occur
+top_eng_skills[1:20]
+
+
+# what skills gets filled way quicker
+skill_fill_eng <- rep(0,length(top_eng_skills))
+
+for(ii in 1:nrow(data_engineer)){
+  tags <- strsplit(data_engineer$tags[ii],',')[[1]]
+  weight.tags <- get_weight(tags,idf_eng)
+  regularized_w <- weight.tags/sum(weight.tags)
+  fill_tag <- data_engineer$time_to_fill[ii]*regularized_w # amount of money avg for tags
+  tag_index <- which(names(top_eng_skills) %in% tags)
+  skill_fill_eng[tag_index] <- skill_fill_eng[tag_index] + fill_tag
+}
+
+names(skill_fill_eng)<-names(top_eng_skills)
+sort(skill_fill_eng,decreasing = T)[1:10] # top 10 most earning skills in total
+
+perc_fill <- skill_fill_eng/top_eng_skills
+sort(perc_fill,decreasing = T)[1:20] #top 10 most earning skills per occur
+
+# correlation between tags earn the most and tags earn most per occurence
+cor(skill_money_eng,skill_fill_eng)# 0.99
+
+# what about if we broke down by state
+
+# what skills earn most money? what about pay per occurence
+unique_states <- unique(data_engineer$state)
+unique_states <- unique_states[unique_states!=-1]
+zeros <- rep(0,length(unique_states))
+skill_money_eng_df <- data.frame(state = unique_states,tag1 = zeros,
+                             tag2 = zeros,tag3 = zeros,
+                             tag4 = zeros,tag5 = zeros,
+                             num1 = zeros,num2 = zeros,
+                             num3 = zeros,num4 = zeros,
+                             num5 = zeros,sal1 = zeros,
+                             sal2 = zeros,sal3 = zeros,
+                             sal4 = zeros,sal5 = zeros)
+# get skill distribution from each state
+for(jj in 1:length(unique_states)){
+  this_df <- data_engineer[data_engineer$state == unique_states[jj],]
+  this_df<- this_df[!is.na(this_df$job_id),]
+  top_eng_skills_state <- sort(table(unlist(strsplit(this_df$tags,','))),decreasing = T)
+  top_eng_skills_state <- top_eng_skills_state[as.numeric(top_eng_skills_state) > (nrow(this_df)/100)]
+  idf_state <- log(nrow(this_df)/top_eng_skills_state)
+  skill_money_state <- rep(0,length(top_eng_skills_state))
+  for(ii in 1:nrow(this_df)){
+    tags <- strsplit(this_df$tags[ii],',')[[1]]
+    weight.tags <- get_weight(tags,idf_state)
+    regularized_w <- weight.tags/sum(weight.tags)
+    money_tag <- this_df$salary[ii]*regularized_w # amount of money avg for tags
+    tag_index <- which(names(top_eng_skills_state) %in% tags)
+    skill_money_state[tag_index] <- skill_money_state[tag_index] + money_tag
+  }
+  names(skill_money_state)<-names(top_eng_skills_state)
+  skill_money_state <- sort(skill_money_state/top_eng_skills_state,decreasing = T)[1:5]
+  num_skills <- top_eng_skills_state[names(top_eng_skills_state) %in% names(skill_money_state)]
+  skill_money_eng_df[jj,2:ncol(skill_money_eng_df)]<- c(names(skill_money_state)[1:5],
+                                                as.numeric(num_skills),
+                                                as.numeric(skill_money_state)
+  )
+}
+write_csv(skill_money_eng_df,'/nfs/home/lcu1428/z/400_proj/skill_money_eng_state.csv')
+
+# what skills fills quicker?
+skill_fill_eng_df <- data.frame(state = unique_states,tag1 = zeros,
+                            tag2 = zeros,tag3 = zeros,
+                            tag4 = zeros,tag5 = zeros,
+                            num1 = zeros,num2 = zeros,
+                            num3 = zeros,num4 = zeros,
+                            num5 = zeros,fill1 = zeros,
+                            fill2 = zeros,fill3 = zeros,
+                            fill4 = zeros,fill5 = zeros)
+# get skill distribution from each state
+for(jj in 1:length(unique_states)){
+  this_df <- data_engineer[data_engineer$state == unique_states[jj],]
+  this_df<- this_df[!is.na(this_df$job_id),]
+  top_eng_skills_state <- sort(table(unlist(strsplit(this_df$tags,','))),decreasing = T)
+  top_eng_skills_state <- top_eng_skills_state[as.numeric(top_eng_skills_state) > (nrow(this_df)/100)]
+  skill_fill_eng_state <- rep(0,length(top_eng_skills_state))
+  idf_state <- log(nrow(this_df)/top_eng_skills_state)
+  for(ii in 1:nrow(this_df)){
+    tags <- strsplit(this_df$tags[ii],',')[[1]]
+    weight.tags <- get_weight(tags,idf_state)
+    regularized_w <- weight.tags/sum(weight.tags)
+    money_tag <- this_df$time_to_fill[ii]*regularized_w # amount of money avg for tags
+    tag_index <- which(names(top_eng_skills_state) %in% tags)
+    skill_fill_eng_state[tag_index] <- skill_fill_eng_state[tag_index] + money_tag
+  }
+  names(skill_fill_eng_state)<-names(top_eng_skills_state)
+  skill_fill_eng_state <- sort(skill_fill_eng_state/top_eng_skills_state,decreasing = T)[1:5]
+  num_skills <- top_eng_skills_state[names(top_eng_skills_state) %in% names(skill_fill_eng_state)]
+  skill_fill_eng_df[jj,2:ncol(skill_fill_eng_df)]<- c(names(skill_fill_eng_state)[1:5],
+                                               as.numeric(num_skills),
+                                               as.numeric(skill_fill_eng_state)
+  )
+}
+write_csv(skill_fill_eng_df,'/nfs/home/lcu1428/z/400_proj/skill_fill_eng_state.csv')
+
+
+## DRIVERS
+
+# most wanted 50 skills 
+top_dri_skills <- sort(table(unlist(strsplit(data_driver$tags,','))),decreasing = T)
+length(top_dri_skills)# 485
+top_dri_skills[1:30]
+
+# avg num of skills required
+num_tags <- as.numeric(sapply(data_driver$tags, count_tag))
+summary(num_tags) # an driver job posting would have on average 10 tags
+
+# what skills earn most money? what about pay per occurence
+top_dri_skills <- top_dri_skills[as.numeric(top_dri_skills) > nrow(data_driver)*0.01] # skill appeared more than 1%
+length(top_dri_skills) #179
+
+# get the IDF values for each top tag
+idf_dri <- log(nrow(data_driver)/top_dri_skills)
+
+# look at what earns money
+skill_money_dri <- rep(0,length(top_dri_skills))
+
+for(ii in 1:nrow(data_driver)){
+  tags <- strsplit(data_driver$tags[ii],',')[[1]]
+  weight.tags <- get_weight(tags,idf_dri)
+  regularized_w <- weight.tags/sum(weight.tags)
+  money_tag <- data_driver$salary[ii]*regularized_w # amount of money avg for tags
+  tag_index <- which(names(top_dri_skills) %in% tags)
+  skill_money_dri[tag_index] <- skill_money_dri[tag_index] + money_tag
+}
+
+names(skill_money_dri)<-names(top_dri_skills)
+sort(skill_money_dri,decreasing = T)[1:10] # top 10 most earning skills in total
+
+perc_money <- skill_money_dri/top_dri_skills
+sort(perc_money,decreasing = T)[1:20] #top 10 most earning skills per occur
+top_dri_skills[1:20]
+
+
+# what skills gets filled way quicker
+skill_fill_dri <- rep(0,length(top_dri_skills))
+
+for(ii in 1:nrow(data_driver)){
+  tags <- strsplit(data_driver$tags[ii],',')[[1]]
+  weight.tags <- get_weight(tags,idf_dri)
+  regularized_w <- weight.tags/sum(weight.tags)
+  fill_tag <- data_driver$time_to_fill[ii]*regularized_w # amount of money avg for tags
+  tag_index <- which(names(top_dri_skills) %in% tags)
+  skill_fill_dri[tag_index] <- skill_fill_dri[tag_index] + fill_tag
+}
+
+names(skill_fill_dri)<-names(top_dri_skills)
+sort(skill_fill_dri,decreasing = T)[1:10] # top 10 most earning skills in total
+
+perc_fill <- skill_fill_dri/top_dri_skills
+sort(perc_fill,decreasing = T)[1:20] #top 10 most earning skills per occur
+
+# correlation between tags earn the most and tags earn most per occurence
+cor(skill_money_dri,skill_fill_dri)# 0.99
+
+# what about if we broke down by state
+
+# what skills earn most money? what about pay per occurence
+zeros <- rep(0,length(unique_states))
+skill_money_dri_df <- data.frame(state = unique_states,tag1 = zeros,
+                                 tag2 = zeros,tag3 = zeros,
+                                 tag4 = zeros,tag5 = zeros,
+                                 num1 = zeros,num2 = zeros,
+                                 num3 = zeros,num4 = zeros,
+                                 num5 = zeros,sal1 = zeros,
+                                 sal2 = zeros,sal3 = zeros,
+                                 sal4 = zeros,sal5 = zeros)
+# get skill distribution from each state
+for(jj in 1:length(unique_states)){
+  this_df <- data_driver[data_driver$state == unique_states[jj],]
+  this_df<- this_df[!is.na(this_df$job_id),]
+  top_dri_skills_state <- sort(table(unlist(strsplit(this_df$tags,','))),decreasing = T)
+  top_dri_skills_state <- top_dri_skills_state[as.numeric(top_dri_skills_state) > (nrow(this_df)/100)]
+  idf_state <- log(nrow(this_df)/top_dri_skills_state)
+  skill_money_state <- rep(0,length(top_dri_skills_state))
+  for(ii in 1:nrow(this_df)){
+    tags <- strsplit(this_df$tags[ii],',')[[1]]
+    weight.tags <- get_weight(tags,idf_state)
+    regularized_w <- weight.tags/sum(weight.tags)
+    money_tag <- this_df$salary[ii]*regularized_w # amount of money avg for tags
+    tag_index <- which(names(top_dri_skills_state) %in% tags)
+    skill_money_state[tag_index] <- skill_money_state[tag_index] + money_tag
+  }
+  names(skill_money_state)<-names(top_dri_skills_state)
+  skill_money_state <- sort(skill_money_state/top_dri_skills_state,decreasing = T)[1:5]
+  num_skills <- top_dri_skills_state[names(top_dri_skills_state) %in% names(skill_money_state)]
+  skill_money_dri_df[jj,2:ncol(skill_money_dri_df)]<- c(names(skill_money_state)[1:5],
+                                                        as.numeric(num_skills),
+                                                        as.numeric(skill_money_state)
+  )
+}
+write_csv(skill_money_dri_df,'/nfs/home/lcu1428/z/400_proj/skill_money_dri_state.csv')
+
+# what skills fills quicker?
+skill_fill_dri_df <- data.frame(state = unique_states,tag1 = zeros,
+                                tag2 = zeros,tag3 = zeros,
+                                tag4 = zeros,tag5 = zeros,
+                                num1 = zeros,num2 = zeros,
+                                num3 = zeros,num4 = zeros,
+                                num5 = zeros,fill1 = zeros,
+                                fill2 = zeros,fill3 = zeros,
+                                fill4 = zeros,fill5 = zeros)
+# get skill distribution from each state
+for(jj in 1:length(unique_states)){
+  this_df <- data_driver[data_driver$state == unique_states[jj],]
+  this_df<- this_df[!is.na(this_df$job_id),]
+  top_dri_skills_state <- sort(table(unlist(strsplit(this_df$tags,','))),decreasing = T)
+  top_dri_skills_state <- top_dri_skills_state[as.numeric(top_dri_skills_state) > (nrow(this_df)/100)]
+  skill_fill_dri_state <- rep(0,length(top_dri_skills_state))
+  idf_state <- log(nrow(this_df)/top_dri_skills_state)
+  for(ii in 1:nrow(this_df)){
+    tags <- strsplit(this_df$tags[ii],',')[[1]]
+    weight.tags <- get_weight(tags,idf_state)
+    regularized_w <- weight.tags/sum(weight.tags)
+    money_tag <- this_df$time_to_fill[ii]*regularized_w # amount of money avg for tags
+    tag_index <- which(names(top_dri_skills_state) %in% tags)
+    skill_fill_dri_state[tag_index] <- skill_fill_dri_state[tag_index] + money_tag
+  }
+  names(skill_fill_dri_state)<-names(top_dri_skills_state)
+  skill_fill_dri_state <- sort(skill_fill_dri_state/top_dri_skills_state,decreasing = T)[1:5]
+  num_skills <- top_dri_skills_state[names(top_dri_skills_state) %in% names(skill_fill_dri_state)]
+  skill_fill_dri_df[jj,2:ncol(skill_fill_dri_df)]<- c(names(skill_fill_dri_state)[1:5],
+                                                      as.numeric(num_skills),
+                                                      as.numeric(skill_fill_dri_state)
+  )
+}
+write_csv(skill_fill_dri_df,'/nfs/home/lcu1428/z/400_proj/skill_fill_dri_state.csv')
+
+
+
+```
