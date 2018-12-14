@@ -1,0 +1,130 @@
+---
+title: "Palantir_Logistic_Regression"
+author: "Anjali Verma"
+date: "12/11/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+# library
+library(readr)
+library(tidyverse)
+library(ggplot2)
+
+# read data
+data_full <- read.csv('Manu_data_200000.csv')
+str(data_full)
+
+# get rid of repeated job id hash
+data_full<-data_full[,-c(1,17,19)]
+str(data_full)
+
+data_engineer <- data_full[data_full$role =='Engineer',]
+data_driver <- data_full[data_full$role == 'Driver',]
+
+eng.tiles <- ntile(data_engineer$salary,10)
+data_engineer <- data_engineer[eng.tiles>=2 & eng.tiles <=9,] #much more normal
+
+dri.tiles <- ntile(data_driver$salary,10)
+data_driver <- data_driver[dri.tiles>=2 & dri.tiles <=9,] #much more normal
+
+sort(table(data_engineer$time_to_fill),decreasing = T) 
+eng.time.tiles <- ntile(data_engineer$time_to_fill,10)
+data_engineer$time_to_fill[eng.time.tiles>=2 & eng.time.tiles <=9] %>% summary() # 4 -115
+data_engineer <- data_engineer[eng.time.tiles>=2 & eng.time.tiles <=9,] # 26148 rows
+
+sort(table(data_driver$time_to_fill),decreasing = T) 
+dri.time.tiles <- ntile(data_driver$time_to_fill,10)
+data_driver$time_to_fill[dri.time.tiles>=2 & dri.time.tiles <=9] %>% summary() # 3 -94
+data_driver <- data_driver[dri.time.tiles>=2 & dri.time.tiles <=9,] # 21130 row
+
+write_csv(data_full,'data_full.csv')
+write_csv(data_engineer,'data_engineer.csv')
+write_csv(data_driver,'data_driver.csv')
+
+```
+```{r}
+data_full <- read_csv('data_full.csv')
+data_engineer <- read_csv('data_engineer.csv')
+data_driver <- read_csv('data_driver.csv')
+
+data_engineer$demand <- rep(0, nrow(data_engineer))
+data_engineer$demand <- ifelse(data_engineer$time_to_fill <= 35, 0, 1)
+
+data_driver$demand <- rep(0, nrow(data_driver))
+data_driver$demand <- ifelse(data_driver$time_to_fill <= 35, 0, 1)
+
+data.predict <- rbind(data_engineer,data_driver)
+
+str(data.predict)
+
+# get month
+library(lubridate)
+data.predict$month <- month(data.predict$post_date) 
+# adjust for over exploded jobs
+data.predict <-data.predict[data.predict$post_date > as.Date('2017-07-31'),]
+
+# make factors
+
+data.predict$month <- as.factor(data.predict$month)
+data.predict$state[is.na(data.predict$state)] <- '-1'
+data.predict$state <- as.factor(data.predict$state)
+
+
+# make prediction table
+data.predict <- data.predict[,c('demand','state','month','salary','role')]
+
+set.seed(123)
+test.idx<-sample(1:nrow(data.predict),size = 0.2*nrow(data.predict))
+data.test<-data.predict[test.idx,]
+data.train<-data.predict[-test.idx,]
+
+library(MASS)
+logistic_fit <- glm(demand ~ state + month + salary, data.train, family = 'binomial')
+summary(logistic_fit)
+
+data.test$predicted <- rep(0, nrow(data.test))
+data.test$predicted <- predict(logistic_fit, data.test, type = 'response')
+
+#tab <- table(data.test$demand, data.test$predicted > 0.55)
+#tab
+
+get_ccr <- function(threshold){
+  tab <- table(data.test$demand, data.test$predicted > threshold)
+  return (sum(diag(tab))/sum(tab))
+}
+
+thresholds <- seq(0,1,by=0.01)
+ccrs <- lapply(thresholds, get_ccr)
+plot(thresholds, ccrs, type='o')
+title('Change in CCR across threshold p levels')
+
+get_f_score <- function(threshold) {
+  tab <-table(data.test$demand, data.test$predicted > threshold)
+  precision <- tab[2,2] / sum(tab[,2])
+  recall <- tab[2,2] / sum(tab[2,])
+  return(2 * recall * precision / (precision + recall))
+}
+
+get_f_score(0.5)
+threshold <- seq(0.1,0.9,by=0.01)
+f_scores <- lapply(threshold, get_f_score)
+plot(threshold, f_scores, type='o')
+title('Change in F-Score across threshold p levels')
+
+tab1 <-table(data.test$demand, data.test$predicted > 0.5)
+  precision1 <- tab1[2,2] / sum(tab1[,2])
+  recall1 <- tab1[2,2] / sum(tab1[2,])
+  f_score1 <- 2 * recall1 * precision1 / (precision1 + recall1)
+CCR1 <- sum(diag(tab1))/sum(tab1)
+  
+  tab1
+  precision1
+  recall1
+  f_score1 
+  CCR1
+
+```
